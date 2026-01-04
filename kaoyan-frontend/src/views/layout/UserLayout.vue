@@ -19,21 +19,35 @@
 
                     <el-menu-item index="/user/dashboard">
                         <el-icon>
-                            <Odometer />
+                            <img :src="dashboardIcon" class="menu-icon-svg" />
                         </el-icon>
                         <template #title>备考看板</template>
                     </el-menu-item>
 
                     <el-menu-item index="/user/subject">
                         <el-icon>
-                            <Notebook />
+                            <img :src="singlePracticeIcon" class="menu-icon-svg" />
                         </el-icon>
-                        <template #title>在线刷题</template>
+                        <template #title>逐题精练</template>
+                    </el-menu-item>
+
+                    <el-menu-item index="/user/topic-drill">
+                        <el-icon>
+                            <img :src="topicDrillIcon" class="menu-icon-svg" />
+                        </el-icon>
+                        <template #title>专项突破</template>
+                    </el-menu-item>
+
+                    <el-menu-item index="/user/mock-exam">
+                        <el-icon>
+                            <img :src="mockExamIcon" class="menu-icon-svg" />
+                        </el-icon>
+                        <template #title>真题模考</template>
                     </el-menu-item>
 
                     <el-menu-item index="/user/correction-notebook">
                         <el-icon>
-                            <CollectionTag />
+                            <img :src="correctionNotebookIcon" class="menu-icon-svg" />
                         </el-icon>
                         <template #title>错题本</template>
                     </el-menu-item>
@@ -99,8 +113,14 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Odometer, Notebook, CollectionTag, Tools, Expand, Fold, ArrowDown, Management, SwitchButton, UserFilled } from '@element-plus/icons-vue'
-import { useUserStore } from '../../stores/user' // 引入 store
+import { useUserStore } from '../../stores/user' 
+
+// 导入自定义图标
+import dashboardIcon from '@/assets/icons/dashboard.svg?url'
+import singlePracticeIcon from '@/assets/icons/single-practice.svg?url'
+import topicDrillIcon from '@/assets/icons/topic-drill.svg?url'
+import mockExamIcon from '@/assets/icons/mock-exam.svg?url'
+import correctionNotebookIcon from '@/assets/icons/correction-notebook.svg?url'
 
 const router = useRouter()
 const userStore = useUserStore() // 使用 store
@@ -263,6 +283,24 @@ const handleLogout = () => {
     font-size: 18px;
     margin-right: 10px;
     color: inherit;
+}
+
+/* 菜单图标 SVG 样式 */
+.menu-icon-svg {
+    width: 1em;
+    height: 1em;
+    /* 
+       利用 filter 实现颜色动态变化：
+       初始状态：黑色图标 -> 转为深灰色 (#606266)
+    */
+    filter: invert(41%) sepia(5%) saturate(542%) hue-rotate(182deg) brightness(91%) contrast(87%);
+    transition: all 0.2s;
+}
+
+/* 选中或悬停时：变为主题蓝 (#409EFF) */
+:deep(.el-menu-item:hover) .menu-icon-svg,
+:deep(.el-menu-item.is-active) .menu-icon-svg {
+    filter: invert(53%) sepia(96%) saturate(3089%) hue-rotate(196deg) brightness(100%) contrast(101%);
 }
 
 /* 折叠状态下的特殊样式 */

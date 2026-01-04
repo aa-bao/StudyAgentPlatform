@@ -16,6 +16,7 @@
                 </div>
             </div>
 
+
             <!-- Level 0: 四大公共课/专业课选择 -->
             <transition name="fade-slide" mode="out-in">
                 <div v-if="currentLevel === 0" class="level-wrapper home-view">
@@ -104,10 +105,10 @@ import {
 } from '@element-plus/icons-vue'
 
 // 导入自定义图标
-import politicsIcon from '@/assets/icons/politics.svg'
-import englishIcon from '@/assets/icons/english.svg'
-import mathIcon from '@/assets/icons/math_1.svg'
-import csIcon from '@/assets/icons/408.svg'
+import politicsIcon from '@/assets/icons/politics.svg?url'
+import englishIcon from '@/assets/icons/english.svg?url'
+import mathIcon from '@/assets/icons/math_1.svg?url'
+import csIcon from '@/assets/icons/408.svg?url'
 
 const router = useRouter()
 const route = useRoute()
@@ -137,7 +138,7 @@ const handleSubjectSelect = async (subject) => {
 }
 
 const goToPractice = (book) => {
-    router.push(`/user/practice/${book.id}?name=${book.name}&subject=${selectedSubject.value.name}`)
+    router.push(`/user/single-practice/${book.id}?name=${book.name}&subject=${selectedSubject.value.name}`)
 }
 
 const resetLevel = () => {
@@ -576,6 +577,7 @@ onMounted(() => {
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-align: center;

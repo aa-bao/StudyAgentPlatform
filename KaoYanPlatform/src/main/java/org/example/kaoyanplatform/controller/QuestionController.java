@@ -10,6 +10,7 @@ import org.example.kaoyanplatform.mapper.ExamRecordMapper;
 import org.example.kaoyanplatform.mapper.QuestionMapper;
 import org.example.kaoyanplatform.service.QuestionService;
 import org.example.kaoyanplatform.service.MistakeRecordService;
+import org.example.kaoyanplatform.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +33,18 @@ public class QuestionController {
 
     @Autowired
     private MistakeRecordService mistakeRecordService;
+
+    @Autowired
+    private SubjectService subjectService;
+
+    @GetMapping("/list-by-knowledge-point")
+    public Result getQuestionsByKnowledgePoint(@RequestParam Integer subjectId) {
+        List<Integer> subjectIds = subjectService.getDescendantIds(subjectId);
+
+        List<Question> questions = questionService.getQuestionsBySubjectIds(subjectIds);
+
+        return Result.success(questions);
+    }
 
     @GetMapping("/list-by-subject")
     public Result getQuestionsBySubject(@RequestParam(required = false) Integer subjectId,

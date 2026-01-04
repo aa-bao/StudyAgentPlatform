@@ -16,6 +16,7 @@ import java.util.Map;
 
 import org.example.kaoyanplatform.entity.MistakeRecord;
 import org.example.kaoyanplatform.service.MistakeRecordService;
+import org.example.kaoyanplatform.service.UserProgressService;
 
 @RestController
 @RequestMapping("/record")
@@ -29,6 +30,9 @@ public class RecordController {
 
     @Autowired
     private MistakeRecordService mistakeRecordService;
+
+    @Autowired
+    private UserProgressService userProgressService;
 
     /**
      * 提交答题并判分
@@ -80,7 +84,10 @@ public class RecordController {
             }
         }
         
-        // 5. 返回结果 (包含正确答案和解析，供前端展示)
+        // 5. 更新用户学习进度
+        userProgressService.updateProgress(examRecord.getUserId(), examRecord.getQuestionId(), isRight);
+        
+        // 6. 返回结果 (包含正确答案和解析，供前端展示)
         Map<String, Object> resMap = new HashMap<>();
         resMap.put("isCorrect", examRecord.getIsCorrect());
         resMap.put("correctAnswer", question.getAnswer());

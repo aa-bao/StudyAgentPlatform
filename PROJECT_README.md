@@ -8,8 +8,15 @@
 *   **架构模式**: 前后端分离。
 *   **目标**: 一个供学生练习考题、管理错题（错题本）并追踪进度的平台。包含一个用于题目和用户管理的后台管理系统。
 *   **核心流程**:
-    *   **用户**: 登录 (支持双模切换) -> 仪表盘 -> 刷题 (Latex 公式支持、计时、画板草稿、多选、"不会"选项需提交) -> 查看解析 (支持 Latex) -> 查看错题本 (Correction Notebook，瀑布流布局、动态面包屑导航、支持政治/英语/数学/408分类、显示最近错误时间) -> 收藏题目 (支持自定义标签、历史标签记忆) -> 下载资料。
+    *   **用户**: 登录 (支持双模切换) -> 仪表盘。
+        *   **逐题精练 (Single Practice)**: 经典模式，按习题册顺序刷题，进入刷题界面左侧为题目显示区，右侧为作答区。
+        *   **专项突破 (Topic Drill)**: 分题型模式，左侧树形目录选择考点，右侧针对性练习。
+        *   **真题模考 (Mock Exam)**: 套卷模式，模拟真实考试环境（开发中）。
+    *   **通用功能**: 刷题 (Latex 公式支持、计时、画板草稿、多选、"不会"选项需提交) -> 查看解析 (支持 Latex) -> 查看错题本 (Correction Notebook，瀑布流布局、动态面包屑导航、支持政治/英语/数学/408分类、显示最近错误时间) -> 收藏题目 (支持自定义标签、历史标签记忆) -> 下载资料。
     *   **管理员**: 登录 -> 管理后台 -> 题目管理 (支持标签管理) -> 用户管理 -> 科目管理 -> 资料管理。
+
+随心刷 | 精准练 | 整卷测
+逐题精练｜专项突破｜真题模考
 
 ## 2. 技术栈
 
@@ -54,6 +61,8 @@ kaoyanplatform/
 │   ├── SubjectController.java  # 科目管理
 │   └── UserController.java     # 用户认证与个人信息
 ├── entity/                     # 数据库模型 (MyBatis Plus)
+│   ├── dto/                    # 数据传输对象
+│   │   └── SubjectDTO.java     # 科目树形结构传输对象
 │   ├── ExamRecord.java         # tb_exam_record 表
 │   ├── Question.java           # tb_question 表
 │   ├── User.java               # sys_user 表
@@ -97,13 +106,17 @@ src/
 │   ├── admin/                  # 管理员专用视图
 │   │   ├── AdminHome.vue
 │   │   └── QuestionManage.vue
-├── layout/                 # 布局容器
+│   ├── quiz/                   # 刷题模式视图
+│   │   ├── SinglePractice.vue  # 逐题精练
+│   │   ├── TopicDrill.vue      # 专项突破
+│   │   └── MockExam.vue        # 真题模考
+│   ├── layout/                 # 布局容器
 │   │   ├── AdminLayout.vue     # 管理员侧边栏 + 顶栏
 │   │   └── UserLayout.vue      # 用户侧边栏 (Light Theme) + 顶栏
 ├── Dashboard.vue           # 用户首页
 ├── Login.vue               # 登录页
-├── QuestionList.vue        # 题目练习列表
 ├── CorrectionNotebook.vue  # 错题本 (瀑布流、分类导航)
+├── SubjectList.vue         # 科目选择列表
 └── UserProfile.vue
 ├── App.vue                     # 根组件
 └── main.js                     # 入口文件 (插件配置)
@@ -177,7 +190,9 @@ src/
 | `sort` | int | 排序号 |
 | `level` | varchar(100) | 层级:1-专业课/公共课；2-章;3-节/知识点 |
 | `question_count` | int | 题目数量 |
-| `scope` | int | 适用范围:1-数一,2-数二, 3-数三 |
+| `scope` | varchar(50) | 适用范围: "4,5,6" (对应数一、数二、数三) |
+注：id范围1-100为顶级科目，例如：1-政治，2-英语一，3-英语二；id范围100以上为二级科目，例如：401-高数，402-线代，403-概率，其中，前缀40为高数下的详细知识点，例如id4011为函数、极限、连续,4012为一元微分学；
+
 
 #### 收藏夹 (`tb_collection`)
 | 字段 | 类型 | 描述 |
@@ -284,3 +299,7 @@ src/
     *   开发 API 代理: `request.js` 中硬编码 `baseURL` 为 `http://localhost:8081`。
 *   **JSON 处理**:
     *   后端使用 `JacksonTypeHandler` 处理复杂字段（如 `Question` 实体中的 `options`, `tags`），自动将 JSON 字符串映射为 Java List。
+*   **图标系统**:
+    *   使用 SVG 图标 (`assets/icons/`)。
+    *   通过 `vite-svg-loader` 加载，需在导入时添加 `?url` 后缀（如 `import icon from '@/assets/icons/icon.svg?url'`）以作为 URL 字符串使用。
+    *   利用 CSS `filter` 属性实现图标颜色动态切换。

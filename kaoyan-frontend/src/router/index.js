@@ -11,23 +11,22 @@ const routes = [
     path: '/login',
     component: () => import('@/views/Login.vue')
   },
-
   // 用户端
   {
     path: '/user',
     component: () => import('@/views/layout/UserLayout.vue'),
     children: [{
-        // 备考面板
+      // 备考面板
         path: 'dashboard',
         component: () => import('@/views/Dashboard.vue')
       },
       {
-        // 错题本
+      // 错题本
         path: 'correction-notebook',
         component: () => import('@/views/CorrectionNotebook.vue')
       },
       {
-        // 个人资料
+      // 个人资料
         path: 'profile',
         component: () => import('@/views/UserProfile.vue')
       },
@@ -36,11 +35,21 @@ const routes = [
         path: 'subject',
         component: () => import('@/views/SubjectList.vue')
       },
-      // 刷题界面
+      // 逐题精练
       {
-        path: 'practice/:subjectId',
-        component: () => import('@/views/GeneralPractice.vue'),
+        path: 'single-practice/:subjectId',
+        component: () => import('@/views/quiz/SinglePractice.vue'),
         props: true
+      },
+      // 专项突破
+      {
+        path: 'topic-drill',
+        component: () => import('@/views/quiz/TopicDrill.vue')
+      },
+      // 真题模考
+      {
+        path: 'mock-exam',
+        component: () => import('@/views/quiz/MockExam.vue')
       },
     ]
   },

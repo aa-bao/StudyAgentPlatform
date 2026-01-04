@@ -152,10 +152,10 @@ import { ElMessage } from 'element-plus'
 import katex from 'katex'
 
 // 导入自定义图标
-import politicsIcon from '@/assets/icons/politics.svg'
-import englishIcon from '@/assets/icons/english.svg'
-import mathIcon from '@/assets/icons/math_1.svg'
-import csIcon from '@/assets/icons/408.svg'
+import politicsIcon from '@/assets/icons/politics.svg?url'
+import englishIcon from '@/assets/icons/english.svg?url'
+import mathIcon from '@/assets/icons/math_1.svg?url'
+import csIcon from '@/assets/icons/408.svg?url'
 
 // 状态管理
 const currentLevel = ref(0) // 0:首页分类, 1:知识点列表, 2:题目列表
