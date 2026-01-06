@@ -12,7 +12,6 @@ public class Question {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // 移除外键字段：subjectId, bookId
     // 现在通过映射表管理：map_question_subject, map_question_book
     private Integer type; // 1-单选, 2-多选
     private String content;
@@ -27,9 +26,12 @@ public class Question {
     // 指定使用 JacksonTypeHandler 来处理 JSON 字段 (存储标签数组)
     @TableField(typeHandler = JacksonTypeHandler.class)
     private List<String> tags;
+    private String source; // 题目来源
+    private java.time.LocalDateTime createTime; // 创建时间
 
+    // 非数据库字段：用于前端展示错题时间
     @TableField(exist = false)
-    private java.time.LocalDateTime createTime; // 用于前端展示错题时间
+    private java.time.LocalDateTime mistakeTime; // 错题时间
 
     // 非数据库字段：用于查询时的关联信息
     @TableField(exist = false)

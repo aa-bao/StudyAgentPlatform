@@ -6,11 +6,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.entity.Question;
 import org.example.kaoyanplatform.entity.MistakeRecord;
+import org.example.kaoyanplatform.entity.dto.QuestionDTO;
 import org.example.kaoyanplatform.mapper.ExamRecordMapper;
 import org.example.kaoyanplatform.mapper.QuestionMapper;
 import org.example.kaoyanplatform.service.QuestionService;
 import org.example.kaoyanplatform.service.MistakeRecordService;
 import org.example.kaoyanplatform.service.SubjectService;
+import org.example.kaoyanplatform.service.MapQuestionSubjectService;
+import org.example.kaoyanplatform.service.MapQuestionBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 题目Controller
+ * 使用映射表（map_question_subject、map_question_book）管理题目与科目、书本的关系
+ */
 @RestController
 @RequestMapping("/question")
 public class QuestionController {
@@ -37,58 +44,98 @@ public class QuestionController {
     @Autowired
     private SubjectService subjectService;
 
+    @Autowired
+    private MapQuestionSubjectService mapQuestionSubjectService;
+
+    @Autowired
+    private MapQuestionBookService mapQuestionBookService;
+
     @GetMapping("/list-by-knowledge-point")
     public Result getQuestionsByKnowledgePoint(@RequestParam Integer subjectId) {
         List<Integer> subjectIds = subjectService.getDescendantIds(subjectId);
-
         List<Question> questions = questionService.getQuestionsBySubjectIds(subjectIds);
-
         return Result.success(questions);
     }
 
     @GetMapping("/list-by-subject")
     public Result getQuestionsBySubject(@RequestParam(required = false) Integer subjectId,
             @RequestParam(required = false) Integer bookId) {
-        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+        List<Long> questionIds = null;
 
-        // 如果有 subjectId
         if (subjectId != null) {
-            queryWrapper.eq(Question::getSubjectId, subjectId);
+            questionIds = mapQuestionSubjectService.getQuestionIdsBySubjectId(subjectId);
+        } else if (bookId != null) {
+            questionIds = mapQuestionBookService.getQuestionIdsByBookId(bookId);
         }
 
-        // 如果有 bookId (按习题册查询)
-        if (bookId != null) {
-            queryWrapper.eq(Question::getBookId, bookId);
+        if (questionIds == null || questionIds.isEmpty()) {
+            if (subjectId != null || bookId != null) {
+                return Result.success(new ArrayList<>());
+            }
+            return Result.success(questionMapper.selectList(null));
         }
 
-        queryWrapper.orderByAsc(Question::getId); // 按 ID 顺序排序
-
-        List<Question> list = questionMapper.selectList(queryWrapper);
-        return Result.success(list);
+        List<Question> questions = questionService.listByIds(questionIds);
+        questions.sort((a, b) -> a.getId().compareTo(b.getId()));
+        return Result.success(questions);
     }
 
-    // 在 QuestionController 类中添加
     @GetMapping("/all")
     public Result getAllQuestions() {
         return Result.success(questionMapper.selectList(null));
     }
 
-    @PostMapping("/update")
-    public Result updateQuestion(@RequestBody Question question) {
-        questionMapper.updateById(question);
-        return Result.success("修改成功");
+    /**
+     * 新增题目（包含关联关系）
+     */
+    @PostMapping("/add")
+    public Result addQuestion(@RequestBody QuestionDTO questionDTO) {
+        boolean success = questionService.saveQuestionWithRelations(questionDTO);
+        return success ? Result.success("添加成功") : Result.error("添加失败");
     }
 
+    /**
+     * 更新题目（包含关联关系）
+     */
+    @PostMapping("/update")
+    public Result updateQuestion(@RequestBody QuestionDTO questionDTO) {
+        boolean success = questionService.updateQuestionWithRelations(questionDTO);
+        return success ? Result.success("修改成功") : Result.error("修改失败");
+    }
+
+    /**
+     * 删除题目（同时删除关联关系）
+     */
     @DeleteMapping("/delete/{id}")
-    public Result deleteQuestion(@PathVariable Integer id) {
+    public Result deleteQuestion(@PathVariable Long id) {
+        // 删除题目-书本关联
+        mapQuestionBookService.removeAllQuestionBookRelations(id);
+        // 删除题目-科目关联
+        mapQuestionSubjectService.removeAllQuestionSubjectRelations(id);
+        // 删除题目
         questionMapper.deleteById(id);
         return Result.success("删除成功");
     }
 
-    @PostMapping("/add")
-    public Result addQuestion(@RequestBody Question question) {
-        questionMapper.insert(question);
-        return Result.success("添加成功");
+    /**
+     * 根据ID获取题目详情（包含关联关系）
+     */
+    @GetMapping("/{id}")
+    public Result getQuestionById(@PathVariable Long id) {
+        Question question = questionMapper.selectById(id);
+        if (question == null) {
+            return Result.error("题目不存在");
+        }
+
+        // 获取关联的书本ID列表
+        List<Integer> bookIds = mapQuestionBookService.getBookIdsByQuestionId(id);
+        question.setBookId(bookIds != null && !bookIds.isEmpty() ? bookIds.get(0) : null);
+
+        // 获取关联的科目ID列表
+        List<Integer> subjectIds = mapQuestionSubjectService.getSubjectIdsByQuestionId(id);
+        question.setSubjectId(subjectIds != null && !subjectIds.isEmpty() ? subjectIds.get(0) : null);
+
+        return Result.success(question);
     }
 
     @GetMapping("/getErrorBook")
@@ -102,12 +149,10 @@ public class QuestionController {
         List<Integer> qIds = list.stream().map(MistakeRecord::getQuestionId).collect(Collectors.toList());
         List<Question> questions = questionService.listByIds(qIds);
 
-        // 将 updateTime 注入到 Question 对象中返回
         for (Question q : questions) {
             for (MistakeRecord wb : list) {
-                // 解决 Integer 和 Long 的比较问题
                 if (wb.getQuestionId().longValue() == q.getId().longValue()) {
-                    q.setCreateTime(wb.getUpdateTime() != null ? wb.getUpdateTime() : wb.getCreateTime());
+                    q.setMistakeTime(wb.getUpdateTime() != null ? wb.getUpdateTime() : wb.getCreateTime());
                     break;
                 }
             }
@@ -116,36 +161,28 @@ public class QuestionController {
         return Result.success(questions);
     }
 
-    // 分页查询
+    /**
+     * 分页查询题目（支持按科目/书本筛选）
+     */
     @GetMapping("/page")
     public Result findPage(@RequestParam Integer pageNum,
             @RequestParam Integer pageSize,
-            @RequestParam(required = false) Integer subjectId) {
-        // 1. 创建分页对象
+            @RequestParam(required = false) Integer subjectId,
+            @RequestParam(required = false) Integer bookId) {
         Page<Question> page = new Page<>(pageNum, pageSize);
-
-        // 2. 构建查询条件（可选，比如按科目过滤）
-        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
-        if (subjectId != null) {
-            queryWrapper.eq(Question::getSubjectId, subjectId);
-        }
-        queryWrapper.orderByDesc(Question::getId); // 按ID倒序，新题在前
-
-        // 3. 执行查询
-        return Result.success(questionService.page(page, queryWrapper));
+        Page<Question> result = questionService.questionPage(page, subjectId, bookId);
+        return Result.success(result);
     }
 
     @PostMapping("/saveWrong")
     public Result saveWrong(@RequestBody MistakeRecord mistakeRecord) {
-        // 1. 检查是否已存在，避免重复
         LambdaQueryWrapper<MistakeRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MistakeRecord::getUserId, mistakeRecord.getUserId())
                 .eq(MistakeRecord::getQuestionId, mistakeRecord.getQuestionId());
 
         if (mistakeRecordService.count(wrapper) == 0) {
-            mistakeRecordService.save(mistakeRecord); // 只有不存在才保存
+            mistakeRecordService.save(mistakeRecord);
         }
         return Result.success();
     }
-
 }

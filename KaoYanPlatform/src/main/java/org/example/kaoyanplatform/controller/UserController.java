@@ -2,8 +2,10 @@ package org.example.kaoyanplatform.controller;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.entity.User;
+import org.example.kaoyanplatform.entity.dto.UserStudyStatsDTO;
 import org.example.kaoyanplatform.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -124,5 +127,52 @@ public class UserController {
         // 设置新密码密文
         user.setPassword(passwordEncoder.encode(newPassword));
         return userService.updateById(user) ? Result.success("密码修改成功") : Result.error("更新失败");
+    }
+
+    /**
+     * 获取用户列表（分页，用于管理员）
+     */
+    @GetMapping("/page")
+    public Result getUserPage(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String keyword) {
+
+        Page<User> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+
+        // 角色筛选
+        if (StrUtil.isNotBlank(role)) {
+            wrapper.eq(User::getRole, role);
+        }
+
+        // 关键词搜索（用户名、昵称、目标院校）
+        if (StrUtil.isNotBlank(keyword)) {
+            wrapper.and(w -> w.like(User::getUsername, keyword)
+                    .or().like(User::getNickname, keyword)
+                    .or().like(User::getTargetSchool, keyword));
+        }
+
+        // 按创建时间倒序
+        wrapper.orderByDesc(User::getCreateTime);
+
+        // 清除密码字段
+        Page<User> result = userService.page(page, wrapper);
+        result.getRecords().forEach(user -> user.setPassword(null));
+
+        return Result.success(result);
+    }
+
+    /**
+     * 获取用户学习统计数据（用于管理员监控）
+     */
+    @GetMapping("/study-stats/{userId}")
+    public Result getUserStudyStats(@PathVariable Long userId) {
+        UserStudyStatsDTO stats = userService.getUserStudyStats(userId);
+        if (stats == null) {
+            return Result.error("用户不存在");
+        }
+        return Result.success(stats);
     }
 }

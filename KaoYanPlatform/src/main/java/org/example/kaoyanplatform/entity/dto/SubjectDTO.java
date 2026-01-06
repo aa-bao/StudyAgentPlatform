@@ -19,4 +19,6 @@ public class SubjectDTO {
     // 统计数据
     private Integer questionCount;
     private Integer finishedCount;
+
+    private String treeId; // 格式为 "父级ID-自身ID"
 }

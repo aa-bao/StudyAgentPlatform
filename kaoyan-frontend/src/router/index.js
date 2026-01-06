@@ -64,6 +64,26 @@ const routes = [
         component: () => import('@/views/admin/AdminHome.vue')
       },
       {
+        // 用户管理
+        path: 'users-manage',
+        component: () => import('@/views/admin/UserManage.vue')
+      },
+      {
+        // 错题监控
+        path: 'mistake-monitor',
+        component: () => import('@/views/admin/MistakeMonitor.vue')
+      },
+      {
+        // 科目体系管理
+        path: 'subjects-manage',
+        component: () => import('@/views/admin/SubjectManage.vue')
+      },
+      {
+        // 习题册管理
+        path: 'books-manage',
+        component: () => import('@/views/admin/BookManage.vue')
+      },
+      {
         // 题目管理
         path: 'questions-manage',
         component: () => import('@/views/admin/QuestionManage.vue')

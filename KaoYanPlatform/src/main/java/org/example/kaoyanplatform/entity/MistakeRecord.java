@@ -13,7 +13,7 @@ public class MistakeRecord {
     private Integer id;
     private Integer userId;
     private Integer questionId;
-    private Integer errorCount; // 新增错误次数
+    private Integer errorCount; // 错误次数
     private LocalDateTime createTime;
-    private LocalDateTime updateTime; // 新增更新时间
+    private LocalDateTime updateTime; // 更新时间
 }

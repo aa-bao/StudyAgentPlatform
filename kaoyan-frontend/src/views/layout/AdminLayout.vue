@@ -17,7 +17,31 @@
                         </el-icon>
                         <span>数据看板</span>
                     </el-menu-item>
-                    <el-menu-item index="/admin/questions">
+                    <el-menu-item index="/admin/users-manage">
+                        <el-icon>
+                            <User />
+                        </el-icon>
+                        <span>用户管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/mistake-monitor">
+                        <el-icon>
+                            <Warning />
+                        </el-icon>
+                        <span>错题监控</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/subjects-manage">
+                        <el-icon>
+                            <Files />
+                        </el-icon>
+                        <span>科目体系管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/books-manage">
+                        <el-icon>
+                            <Reading />
+                        </el-icon>
+                        <span>习题册管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/questions-manage">
                         <el-icon>
                             <Document />
                         </el-icon>
@@ -70,7 +94,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { HomeFilled, Document, Monitor, Management, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { HomeFilled, Document, Monitor, Management, Reading, Files, User, Warning, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
