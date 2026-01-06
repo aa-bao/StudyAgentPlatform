@@ -6,22 +6,91 @@
 
 ## 📋 目录
 
-1. [项目概览](#1-项目概览)
-2. [技术栈](#2-技术栈)
-3. [项目结构](#3-项目结构)
-4. [数据模型设计](#4-数据模型设计)
-5. [核心功能模块](#5-核心功能模块)
-6. [API 接口规范](#6-api-接口规范)
-7. [前端架构](#7-前端架构)
-8. [核心实现细节](#8-核心实现细节)
-9. [开发规范](#9-开发规范)
-10. [已知问题与优化建议](#10-已知问题与优化建议)
+1. [快速开始](#1-快速开始)
+2. [项目概览](#2-项目概览)
+3. [技术栈](#3-技术栈)
+4. [项目结构](#4-项目结构)
+5. [数据模型设计](#5-数据模型设计)
+6. [核心功能模块](#6-核心功能模块)
+7. [API 接口文档](#7-api-接口文档)
+8. [前端架构](#8-前端架构)
+9. [核心实现细节](#9-核心实现细节)
+10. [开发规范](#10-开发规范)
+11. [已知问题与优化建议](#11-已知问题与优化建议)
 
 ---
 
-## 1. 项目概览
+## 1. 快速开始
 
-### 1.1 项目定位
+### 1.1 环境要求
+
+- **JDK**: 17+
+- **Maven**: 3.6+
+- **MySQL**: 8.0+
+- **Node.js**: 16+
+- **IDE**: IntelliJ IDEA / VS Code
+
+### 1.2 数据库初始化
+
+```sql
+-- 创建数据库
+CREATE DATABASE kaoyan_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+-- 导入表结构和初始数据
+USE kaoyan_platform;
+SOURCE /path/to/schema.sql;
+```
+
+### 1.3 后端启动
+
+```bash
+# 进入后端目录
+cd KaoYanPlatform
+
+# 修改配置文件
+# 编辑 src/main/resources/application.yml，配置数据库连接
+
+# 启动项目
+mvn spring-boot:run
+
+# 或者直接运行主类
+# KaoYanPlatform/src/main/java/org/example/kaoyanplatform/KaoyanplatformApplication.java
+```
+
+后端服务启动后访问：
+- **API 地址**: http://localhost:8081
+- **Swagger 文档**: http://localhost:8081/doc.html
+
+### 1.4 前端启动
+
+```bash
+# 进入前端目录
+cd kaoyan-frontend
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+```
+
+前端服务启动后访问：http://localhost:5173
+
+### 1.5 默认账号
+
+| 角色 | 用户名 | 密码 |
+|------|--------|------|
+| 管理员 | admin | admin123 |
+| 普通用户 | student | 123456 |
+
+---
+
+## 2. 项目概览
+
+### 2.1 项目定位
 
 **KaoYanPlatform** 是一个面向考研学生的在线刷题与学习管理平台，支持：
 
@@ -30,7 +99,7 @@
 - **学习进度追踪**: 实时统计学习数据、可视化展示
 - **后台管理系统**: 题目/科目/用户/资源的全面管理
 
-### 1.2 核心业务流程
+### 2.2 核心业务流程
 
 ```
 用户端流程:
@@ -44,7 +113,7 @@
  → 数据统计与系统维护
 ```
 
-### 1.3 产品特色
+### 2.3 产品特色
 
 - **三种刷题模式**: 随心刷 | 精准练 | 整卷测
 - **LaTeX 公式支持**: 完美支持数学公式渲染
@@ -52,7 +121,30 @@
 - **多对多关系**: 灵活的题目-书本-科目关联体系
 - **可视化监控**: ECharts 雷达图、热力图等数据可视化
 
-### 1.4 更新历史
+### 2.4 更新历史
+
+#### 2026-01-07: 完善 Swagger API 文档注解 📚
+
+完成所有 Controller 接口的 Swagger 注解完善，提供详细的接口文档用于测试和调试。
+
+**完善内容**:
+- ✅ AdminController: 管理员统计、错题热力图、热门错题
+- ✅ BookController: 习题册 CRUD、分页查询、科目关联
+- ✅ CollectionController: 收藏管理、标签管理
+- ✅ FileController: 文件上传
+- ✅ QuestionController: 题目 CRUD、错题本、分页查询
+- ✅ RecordController: 答题提交、统计查询、最近动态
+- ✅ SubjectController: 科目树、层级管理、拖拽排序
+- ✅ UserController: 用户认证、资料管理、头像上传、学习统计
+
+**注解特性**:
+- 详细的接口描述（`@Operation`）
+- 参数说明（`@Parameter`）包含是否必填、示例值
+- 请求体说明（`@RequestBody`）包含字段说明
+- 返回数据结构说明
+- 支持 Swagger UI 在线测试
+
+访问地址: http://localhost:8081/doc.html
 
 #### 2026-01-06: 科目层级结构重构为 4 级体系 🎯
 
@@ -287,13 +379,15 @@ kaoyan-frontend/src/
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | bigint | PK, AUTO | 主键 |
-| username | varchar(50) | UNIQUE | 用户名/手机号 |
+| username | varchar(50) | UNIQUE | 用户名/账号 |
 | password | varchar(100) | NOT NULL | 密码（加密） |
+| phone | varchar(50) | | 手机号 |
+| email | varchar(50) | | 邮箱 |
 | nickname | varchar(50) | | 昵称 |
 | role | varchar(20) | | `admin` 或 `student` |
 | avatar | varchar(255) | | 头像 URL |
 | target_school | varchar(100) | | 目标院校 |
-| target_total_score | int | | 目标总分 |
+| target_total_score | smallint | | 目标总分 |
 | exam_year | varchar(50) | | 考研年份（如：2025） |
 | exam_subjects | varchar(255) | | 公共课（如：政治、英语一） |
 | create_time | datetime | | 创建时间 |
@@ -619,9 +713,31 @@ WHERE q.id = 1000;
 
 ---
 
-## 6. API 接口规范
+## 7. API 接口文档
 
-### 6.1 统一响应格式
+### 7.1 Swagger 文档访问
+
+项目使用 **Knife4j** (Swagger 的增强版) 自动生成 API 文档。
+
+**访问地址**: http://localhost:8081/doc.html
+
+**功能特性**:
+- 在线调试接口（发送请求、查看响应）
+- 查看接口参数说明和示例值
+- 导出 API 文档（Markdown/HTML/Word）
+- 接口分组管理（按 Controller 分组）
+
+**接口分组**:
+1. **管理员管理** - 统计数据、错题监控
+2. **习题册管理** - 习题册 CRUD、科目关联
+3. **收藏管理** - 收藏题目、标签管理
+4. **文件管理** - 文件上传
+5. **题目管理** - 题目 CRUD、错题本
+6. **答题记录** - 提交答案、统计查询
+7. **科目管理** - 科目树、层级管理
+8. **用户管理** - 登录注册、资料管理
+
+### 7.2 统一响应格式
 
 #### Result.java
 
@@ -677,13 +793,13 @@ public class Result<T> {
 }
 ```
 
-### 6.2 基础配置
+### 7.3 基础配置
 
 - **Base URL**: `http://localhost:8081`
 - **超时时间**: 10000ms
 - **请求头**: `Content-Type: application/json`
 
-### 6.3 前端拦截器
+### 7.4 前端拦截器
 
 ```javascript
 // request.js
@@ -718,9 +834,9 @@ export default request
 
 ---
 
-## 7. 前端架构
+## 8. 前端架构
 
-### 7.1 路由与权限
+### 8.1 路由与权限
 
 #### 路由结构
 
@@ -805,7 +921,7 @@ router.beforeEach((to, from, next) => {
 })
 ```
 
-### 7.2 布局策略
+### 8.2 布局策略
 
 #### AdminLayout（管理员布局）
 
@@ -819,7 +935,7 @@ router.beforeEach((to, from, next) => {
 - **顶栏**: 用户信息 + 消息通知
 - **内容区**: 学习功能页面
 
-### 7.3 状态管理
+### 8.3 状态管理
 
 #### user.js (Pinia Store)
 
@@ -855,9 +971,9 @@ export const useUserStore = defineStore('user', {
 
 ---
 
-## 8. 核心实现细节
+## 9. 核心实现细节
 
-### 8.1 多对多关系管理
+### 9.1 多对多关系管理
 
 #### 设计理念
 
@@ -880,7 +996,7 @@ export const useUserStore = defineStore('user', {
 />
 ```
 
-### 8.2 树形结构处理
+### 9.2 树形结构处理
 
 #### 场景
 
@@ -1044,7 +1160,7 @@ private void sortTree(List<SubjectDTO> nodes) {
 }
 ```
 
-### 8.3 拖拽排序实现
+### 9.3 拖拽排序实现
 
 #### 技术栈
 
@@ -1085,7 +1201,7 @@ const handleNodeDrop = async (draggingNode, dropNode, dropType, event) => {
 }
 ```
 
-### 8.4 ECharts 雷达图实现
+### 9.4 ECharts 雷达图实现
 
 #### 场景
 
@@ -1122,7 +1238,7 @@ const option = {
 }
 ```
 
-### 8.5 KaTeX 数学公式渲染
+### 9.5 KaTeX 数学公式渲染
 
 #### 后端存储
 
@@ -1165,9 +1281,9 @@ const renderedContent = computed(() => {
 
 ---
 
-## 9. 开发规范
+## 10. 开发规范
 
-### 9.1 代码规范
+### 10.1 代码规范
 
 #### 后端
 
@@ -1199,7 +1315,7 @@ const renderedContent = computed(() => {
    - 使用 scoped 样式避免污染
    - 优先使用 Element Plus 主题变量
 
-### 9.2 认证与授权
+### 10.2 认证与授权
 
 #### 前端
 
@@ -1211,7 +1327,7 @@ const renderedContent = computed(() => {
 - 使用 Spring Security 进行安全控制
 - JWT Token 机制（待实现）
 
-### 9.3 环境配置
+### 10.3 环境配置
 
 #### 开发环境
 
@@ -1223,12 +1339,12 @@ const renderedContent = computed(() => {
 - 需配置环境变量
 - API URL 替换为生产环境地址
 
-### 9.4 JSON 处理
+### 10.4 JSON 处理
 
 - 后端使用 `JacksonTypeHandler` 处理复杂字段（如 `Question` 实体中的 `options`, `tags`）
 - 自动将 JSON 字符串映射为 Java List
 
-### 9.5 图标系统
+### 10.5 图标系统
 
 - 使用 SVG 图标 (`assets/icons/`)
 - 通过 `vite-svg-loader` 加载，需在导入时添加 `?url` 后缀
@@ -1240,9 +1356,9 @@ import icon from '@/assets/icons/icon.svg?url'
 
 ---
 
-## 10. 已知问题与优化建议
+## 11. 已知问题与优化建议
 
-### 10.1 当前限制
+### 11.1 当前限制
 
 1. **题目与科目关联**: 一道题只能关联一个科目（通过 `map_question_subject` 的 `LIMIT 1` 实现）
 2. **文件存储**: 当前仅支持本地存储，未接入 OSS
@@ -1252,7 +1368,7 @@ import icon from '@/assets/icons/icon.svg?url'
 6. **真题模考**: 套卷模式未完善
 7. **科目层级限制**: 当前固定为 4 层级，未来如需扩展需修改 `SubjectLevelConstants.java`
 
-### 10.2 性能优化建议
+### 11.2 性能优化建议
 
 1. **索引优化**:
    - 为 `map_question_book`、`map_question_subject` 的 `question_id` 和 `book_id/subject_id` 建立复合索引
@@ -1272,7 +1388,7 @@ import icon from '@/assets/icons/icon.svg?url'
    - 组件按需引入
    - 图片懒加载
 
-### 10.3 扩展方向
+### 11.3 扩展方向
 
 1. **真题模考**: 实现套卷模式，倒计时、自动提交、成绩分析
 2. **智能推荐**: 基于错题记录推荐薄弱知识点题目
@@ -1336,8 +1452,8 @@ A:
 
 ---
 
-**文档版本**: v1.1
-**最后更新**: 2026-01-06
+**文档版本**: v1.2
+**最后更新**: 2026-01-07
 **维护者**: AI Assistant
 
 ### B. 科目层级常量定义

@@ -3,6 +3,12 @@ package org.example.kaoyanplatform.controller;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.entity.User;
 import org.example.kaoyanplatform.entity.dto.UserStudyStatsDTO;
@@ -14,10 +20,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Tag(name = "用户管理", description = "提供用户登录、注册、资料管理及学习统计等接口")
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -28,27 +34,36 @@ public class UserController {
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
-    // 登录
     @PostMapping("/login")
-    public Result login(@RequestBody Map<String, String> loginData) {
+    @Operation(summary = "用户登录", description = "验证用户名密码，成功后返回用户信息")
+    @ApiResponse(responseCode = "200", description = "登录成功")
+    public Result login(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "登录参数",
+                    content = @Content(examples = @ExampleObject(value = "{\"username\": \"admin\", \"password\": \"123456\"}"))
+            )
+            @RequestBody Map<String, String> loginData) {
         String username = loginData.get("username");
         String password = loginData.get("password");
 
-        // 先按用户名查询
         User user = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getUsername, username));
 
-        // 校验：用户存在 且 密码匹配 (BCrypt 必须使用 matches)
         if (user != null && passwordEncoder.matches(password, user.getPassword())) {
-            user.setPassword(null); // 安全起见，返回前端前擦除密码
+            user.setPassword(null);
             return Result.success(user);
         } else {
             return Result.error("用户名或密码错误");
         }
     }
 
-    // 注册
     @PostMapping("/register")
-    public Result register(@RequestBody User user) {
+    @Operation(summary = "用户注册", description = "创建新用户。用户名具有唯一性限制。")
+    public Result register(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "注册用户信息",
+                    content = @Content(examples = @ExampleObject(value = "{\"username\": \"testuser\", \"password\": \"123456\", \"nickname\": \"考研加油\"}"))
+            )
+            @RequestBody User user) {
         if (StrUtil.isBlank(user.getUsername()) || StrUtil.isBlank(user.getPassword())) {
             return Result.error("用户名或密码不能为空");
         }
@@ -57,9 +72,14 @@ public class UserController {
         return success ? Result.success("注册成功") : Result.error("用户名已存在");
     }
 
-    // 更新个人资料
     @PostMapping("/update")
-    public Result update(@RequestBody User user) {
+    @Operation(summary = "更新个人资料", description = "根据ID更新用户的昵称、头像、目标院校等非敏感信息。")
+    public Result update(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "更新数据（必须包含id）",
+                    content = @Content(examples = @ExampleObject(value = "{\"id\": 1, \"nickname\": \"新昵称\", \"targetSchool\": \"清华大学\"}"))
+            )
+            @RequestBody User user) {
         if (user.getId() == null) {
             return Result.error("更新失败：用户ID不能为空");
         }
@@ -82,9 +102,11 @@ public class UserController {
         return Result.error("服务器更新失败");
     }
 
-    // 头像上传
-    @PostMapping("/upload")
-    public Result upload(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/upload", consumes = "multipart/form-data")
+    @Operation(summary = "上传头像", description = "上传图片文件并返回静态资源访问URL。")
+    public Result upload(
+            @Parameter(description = "要上传的头像图片文件", required = true)
+            @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) return Result.error("上传文件不能为空");
 
         try {
@@ -95,8 +117,6 @@ public class UserController {
             if (!dest.getParentFile().exists()) dest.getParentFile().mkdirs();
 
             file.transferTo(dest);
-
-            // 返回路径前缀必须与 WebConfig 中的 addResourceHandler("/uploads/**") 一致
             String fileUrl = "/uploads/" + fileName;
             return Result.success(fileUrl);
         } catch (IOException e) {
@@ -105,9 +125,14 @@ public class UserController {
         }
     }
 
-    // 修改密码
     @PostMapping("/updatePwd")
-    public Result updatePwd(@RequestBody Map<String, String> params) {
+    @Operation(summary = "修改密码", description = "校验旧密码并设置新密码。")
+    public Result updatePwd(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "密码修改参数",
+                    content = @Content(examples = @ExampleObject(value = "{\"userId\": \"1\", \"oldPassword\": \"123456\", \"newPassword\": \"654321\"}"))
+            )
+            @RequestBody Map<String, String> params) {
         String userId = params.get("userId");
         String oldPassword = params.get("oldPassword");
         String newPassword = params.get("newPassword");
@@ -119,56 +144,44 @@ public class UserController {
         User user = userService.getById(userId);
         if (user == null) return Result.error("用户不存在");
 
-        // 比对旧密码密文
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             return Result.error("旧密码错误");
         }
 
-        // 设置新密码密文
         user.setPassword(passwordEncoder.encode(newPassword));
         return userService.updateById(user) ? Result.success("密码修改成功") : Result.error("更新失败");
     }
 
-    /**
-     * 获取用户列表（分页，用于管理员）
-     */
     @GetMapping("/page")
+    @Operation(summary = "分页获取用户列表", description = "供管理员使用。支持按角色过滤及关键词模糊搜索（用户名/昵称/目标院校）。")
     public Result getUserPage(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "10") Integer pageSize,
-            @RequestParam(required = false) String role,
-            @RequestParam(required = false) String keyword) {
+            @Parameter(description = "当前页码", example = "1") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页条数", example = "10") @RequestParam(defaultValue = "10") Integer pageSize,
+            @Parameter(description = "用户角色(ADMIN/USER)", example = "USER") @RequestParam(required = false) String role,
+            @Parameter(description = "搜索关键词(用户名/昵称/院校)") @RequestParam(required = false) String keyword) {
 
         Page<User> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
 
-        // 角色筛选
-        if (StrUtil.isNotBlank(role)) {
-            wrapper.eq(User::getRole, role);
-        }
-
-        // 关键词搜索（用户名、昵称、目标院校）
+        if (StrUtil.isNotBlank(role)) wrapper.eq(User::getRole, role);
         if (StrUtil.isNotBlank(keyword)) {
             wrapper.and(w -> w.like(User::getUsername, keyword)
                     .or().like(User::getNickname, keyword)
                     .or().like(User::getTargetSchool, keyword));
         }
-
-        // 按创建时间倒序
         wrapper.orderByDesc(User::getCreateTime);
 
-        // 清除密码字段
         Page<User> result = userService.page(page, wrapper);
         result.getRecords().forEach(user -> user.setPassword(null));
 
         return Result.success(result);
     }
 
-    /**
-     * 获取用户学习统计数据（用于管理员监控）
-     */
     @GetMapping("/study-stats/{userId}")
-    public Result getUserStudyStats(@PathVariable Long userId) {
+    @Operation(summary = "获取用户学习统计数据", description = "获取指定用户的总答题量、正确率、连续打卡天数等统计信息。")
+    public Result getUserStudyStats(
+            @Parameter(description = "用户ID", required = true, example = "1")
+            @PathVariable Long userId) {
         UserStudyStatsDTO stats = userService.getUserStudyStats(userId);
         if (stats == null) {
             return Result.error("用户不存在");

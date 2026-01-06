@@ -135,6 +135,7 @@ const loadData = async () => {
         // 获取热力图数据
         const heatmapRes = await request.get('/admin/mistake-heatmap')
         heatmapData.value = heatmapRes.data || heatmapRes || []
+        console.log('heatmapData：', heatmapData.value)
 
         // 获取高频错题
         const hotRes = await request.get('/admin/hot-mistakes?limit=20')
@@ -170,8 +171,6 @@ onMounted(() => {
 
 <style scoped>
 .mistake-monitor-container {
-    padding: 16px;
-    background-color: #f5f7f9;
     min-height: calc(100vh - 120px);
 }
 

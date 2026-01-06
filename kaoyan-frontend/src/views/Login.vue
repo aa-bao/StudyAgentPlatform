@@ -100,12 +100,13 @@ const handleSubmit = () => {
     loading.value = true
     try {
       if (isLogin.value) {
-        // --- 登录逻辑 ---
+        // 登录逻辑
         const res = await loginApi({
           username: form.username,
           password: form.password
         })
-        // request.js 拦截器已确保 code===200
+        console.log('登录提交表单：', form)
+
         ElMessage.success('登录成功')
 
         // 1. 调用 store 存入全部数据（含 role）
@@ -124,7 +125,7 @@ const handleSubmit = () => {
         }, 100)
 
       } else {
-        // --- 注册逻辑 ---
+        // 注册逻辑  
         const res = await registerApi(form)
         ElMessage.success('注册成功，请登录')
         isLogin.value = true // 注册后自动跳回登录

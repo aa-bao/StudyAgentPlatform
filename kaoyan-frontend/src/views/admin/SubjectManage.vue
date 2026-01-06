@@ -251,14 +251,13 @@ onMounted(() => loadTree())
 
 <style scoped>
 .subject-manage-container {
-    padding: 16px;
-    background-color: #f5f7f9;
     min-height: calc(100vh - 120px);
 }
 
 .tree-card {
     border-radius: 8px;
     border: none;
+    padding: 10px;
 }
 
 .card-header {

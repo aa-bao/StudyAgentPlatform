@@ -1,108 +1,110 @@
 <template>
-    <div class="admin-container">
-        <el-card shadow="never" class="table-card">
-            <template #header>
-                <div class="card-header">
-                    <span class="title-text">习题册管理中心</span>
+    <div class="user-manage-container">
+        <div class="content-wrapper">
+            <el-card shadow="never" class="main-card">
+                <div class="header-section">
+                    <div class="title-info">
+                        <div class="title-text">习题册管理中心</div>
+                        <div class="header-desc">统一配置考研各科目所需的参考书目与习题资源（共 {{ total }} 本）</div>
+                    </div>
                     <el-button type="primary" icon="Plus" @click="handleAdd">新增习题册</el-button>
                 </div>
-            </template>
 
-            <!-- 搜索表单 -->
-            <el-form :inline="true" :model="searchForm" class="search-form">
-                <el-form-item label="所属科目">
-                    <el-cascader
-                        v-model="searchForm.subjectId"
-                        :options="subjectTree"
-                        :props="{
-                            value: 'id',
-                            label: 'name',
-                            children: 'children',
-                            checkStrictly: true,
-                            emitPath: false
-                        }"
-                        placeholder="请选择科目"
-                        clearable
-                        style="width: 200px"
-                        @change="loadData"
-                    />
-                </el-form-item>
-                <el-form-item>
-                    <el-button type="primary" icon="Search" @click="loadData">查询</el-button>
-                    <el-button icon="Refresh" @click="resetSearch">重置</el-button>
-                </el-form-item>
-            </el-form>
+                <div class="search-section">
+                    <el-form :inline="true" :model="searchForm">
+                        <el-form-item label="所属科目">
+                            <el-cascader v-model="searchForm.subjectId" :options="subjectTree" :props="{
+                                value: 'id',
+                                label: 'name',
+                                children: 'children',
+                                checkStrictly: true,
+                                emitPath: false
+                            }" placeholder="选择科目分类" clearable style="width: 240px" @change="loadData" />
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button type="primary" @click="loadData">查询</el-button>
+                            <el-button @click="resetSearch" plain>重置</el-button>
+                        </el-form-item>
+                    </el-form>
+                </div>
 
-            <!-- 数据表格 -->
-            <el-table :data="tableData" border stripe v-loading="loading" class="custom-table">
-                <el-table-column prop="id" label="ID" width="70" align="center" />
-                <el-table-column prop="name" label="习题册名称" show-overflow-tooltip min-width="200" />
-                <el-table-column prop="description" label="描述" show-overflow-tooltip min-width="250" />
-                <el-table-column label="关联科目" width="200" align="center">
-                    <template #default="scope">
-                        <el-tag v-if="scope.row.subjectNames" size="small" type="success">
-                            {{ scope.row.subjectNames.join(', ') }}
-                        </el-tag>
-                        <el-tag v-else size="small" type="info">未关联</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
-                <el-table-column label="操作" width="200" align="center" fixed="right">
-                    <template #default="scope">
-                        <el-button size="small" type="primary" link @click="handleEdit(scope.row)">编辑</el-button>
-                        <el-button size="small" type="danger" link @click="handleDelete(scope.row.id)">删除</el-button>
-                    </template>
-                </el-table-column>
-            </el-table>
+                <el-table :data="tableData" v-loading="loading" class="modern-table">
+                    <el-table-column prop="id" label="ID" width="70" align="center" />
 
-            <!-- 分页 -->
-            <div class="pagination-container">
-                <el-pagination
-                    :current-page="pageNum"
-                    :page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
-                    layout="total, sizes, prev, pager, next, jumper"
-                    :total="total"
-                    @size-change="handleSizeChange"
-                    @current-change="handlePageChange"
-                />
-            </div>
-        </el-card>
+                    <el-table-column label="习题册信息" min-width="250">
+                        <template #default="scope">
+                            <div class="book-info-cell">
+                                <div class="nickname">{{ scope.row.name }}</div>
+                                <div class="username">{{ scope.row.description || '暂无描述' }}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
 
-        <!-- 编辑/新增对话框 -->
-        <el-dialog v-model="dialogVisible" :title="form.id ? '编辑习题册' : '新增习题册'" width="700px" destroy-on-close @close="resetForm">
-            <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+                    <el-table-column label="关联科目" min-width="200">
+                        <template #default="scope">
+                            <div v-if="scope.row.subjectNames?.length" class="tags-container">
+                                <el-tag v-for="name in scope.row.subjectNames" :key="name" size="small"
+                                    class="subject-tag" effect="light">
+                                    {{ name }}
+                                </el-tag>
+                            </div>
+                            <span v-else class="text-muted">未关联</span>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="录入时间" width="160" align="center">
+                        <template #default="scope">
+                            <span class="time-text">{{ scope.row.createTime ? scope.row.createTime.split('T')[0] : '-'
+                                }}</span>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="150" align="center" fixed="right">
+                        <template #default="scope">
+                            <el-button size="small" type="primary" link @click="handleEdit(scope.row)">
+                                编辑
+                            </el-button>
+                            <el-button size="small" type="danger" link @click="handleDelete(scope.row.id)">
+                                删除
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <div class="pagination-container">
+                    <el-pagination background :current-page="pageNum" :page-size="pageSize"
+                        layout="total, prev, pager, next" :total="total" @current-change="handlePageChange" />
+                </div>
+            </el-card>
+        </div>
+
+        <el-dialog v-model="dialogVisible" :title="form.id ? '编辑习题册' : '新增习题册'" width="550px" destroy-on-close
+            class="stats-drawer">
+            <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
                 <el-form-item label="习题册名称" prop="name">
-                    <el-input v-model="form.name" placeholder="请输入习题册名称，如：张宇1000题" />
+                    <el-input v-model="form.name" placeholder="例如：张宇1000题" />
                 </el-form-item>
 
-                <el-form-item label="描述" prop="description">
-                    <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入习题册描述" />
+                <el-form-item label="详细描述" prop="description">
+                    <el-input v-model="form.description" type="textarea" :rows="3" placeholder="习题册的版本或核心介绍" />
                 </el-form-item>
 
                 <el-form-item label="关联科目" prop="subjectIds">
-                    <el-cascader
-                        v-model="form.subjectIds"
-                        :options="subjectTree"
-                        :props="{
-                            value: 'id',
-                            label: 'name',
-                            children: 'children',
-                            checkStrictly: true,
-                            emitPath: false,
-                            multiple: true
-                        }"
-                        placeholder="请选择科目（可多选）"
-                        collapse-tags
-                        collapse-tags-tooltip
-                        style="width: 100%"
-                    />
-                    <div class="form-tip">提示：一本书可以关联多个科目，如《张宇1000题》可同时关联高数、线代、概率</div>
+                    <el-cascader v-model="form.subjectIds" :options="subjectTree" :props="{
+                        value: 'id',
+                        label: 'name',
+                        children: 'children',
+                        checkStrictly: true,
+                        emitPath: false,
+                        multiple: true
+                    }" placeholder="可选择一个或多个科目" style="width: 100%" collapse-tags />
                 </el-form-item>
             </el-form>
             <template #footer>
-                <el-button @click="dialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="saving" @click="saveBook">确定保存</el-button>
+                <div class="dialog-footer">
+                    <el-button @click="dialogVisible = false">取消</el-button>
+                    <el-button type="primary" :loading="saving" @click="saveBook">确认提交</el-button>
+                </div>
             </template>
         </el-dialog>
     </div>
@@ -151,7 +153,7 @@ const loadSubjectTree = async () => {
     }
 }
 
-// 过滤科目树，用于级联选择器
+
 // 基于 scope 字段实现多对多关系映射
 const filterSubjectTreeForCascader = (tree) => {
     // 扁平化所有节点到一个 map 中
@@ -289,6 +291,7 @@ const loadData = async () => {
         const res = await request.get('/book/page', { params })
         const data = res.data || res
         const books = data.records || []
+        console.log('原始习题册数据:', books)
 
         // 为每本书获取关联的科目名称
         for (const book of books) {
@@ -446,63 +449,108 @@ onMounted(() => {
 })
 </script>
 
+
 <style scoped>
-.admin-container {
-    padding: 16px;
+.user-manage-container {
     background-color: #f5f7f9;
-    min-height: calc(100vh - 120px);
+    min-height: calc(100vh - 100px);
 }
 
-.table-card {
-    border-radius: 8px;
+.main-card {
     border: none;
+    border-radius: 8px;
 }
 
-.card-header {
+/* 顶部标题样式 */
+.header-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 24px;
+    padding: 10px 5px;
 }
 
 .title-text {
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 8px;
+}
+
+.header-desc {
+    font-size: 13px;
+    color: #909399;
+}
+
+/* 搜索区域 - 采用和用户页一样的背景 */
+.search-section {
+    background-color: #f8faff;
+    padding: 18px 20px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.search-section :deep(.el-form-item) {
+    margin-bottom: 0;
+    /* 搜索行不需要底边距 */
+}
+
+/* 表格内部样式 */
+.modern-table {
+    margin-bottom: 20px;
+}
+
+.book-info-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nickname {
     font-weight: 600;
     color: #303133;
 }
 
-.search-form {
-    background: #fff;
-    padding: 12px 0;
-    margin-bottom: 8px;
-}
-
-.custom-table {
-    width: 100% !important;
-    margin-top: 10px;
-}
-
-.pagination-container {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.form-tip {
+.username {
     font-size: 12px;
     color: #909399;
-    margin-top: 4px;
+    /* 描述太长时显示省略号 */
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-:deep(.el-form-item) {
-    margin-bottom: 18px;
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
-:deep(.el-table) {
+.subject-tag {
+    border-radius: 4px;
+}
+
+.time-text {
+    font-size: 13px;
+    color: #606266;
+}
+
+.text-muted {
+    color: #c0c4cc;
     font-size: 13px;
 }
 
+/* 分页居中或靠右 */
+.pagination-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
 :deep(.el-table th) {
-    background-color: #f5f7fa;
+    background-color: #f8f9fb;
+    color: #606266;
     font-weight: 600;
 }
 </style>

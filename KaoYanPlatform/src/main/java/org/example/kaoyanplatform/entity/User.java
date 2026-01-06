@@ -10,9 +10,11 @@ import java.time.LocalDateTime;
 public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private String username;
-    private String password;
-    private String nickname;
+    private String username;            // 账号/用户名
+    private String password;            // 密码
+    private String phone;               // 手机号
+    private String email;               // 邮箱
+    private String nickname;            // 昵称
     private String avatar;              // 头像url
     private String role;                // 身份
     private String targetSchool;        // 目标院校
@@ -21,9 +23,9 @@ public class User {
     private String examSubjects;        // 公共课
 
     @TableField(fill = FieldFill.INSERT)
-    @JsonProperty("create_time")
+    @JsonProperty("createTime")
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)
-    @JsonProperty("update_time")
+    @JsonProperty("updateTime")
     private LocalDateTime updateTime;
 }
