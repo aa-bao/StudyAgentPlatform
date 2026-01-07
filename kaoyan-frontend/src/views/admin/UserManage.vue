@@ -8,6 +8,8 @@
                         <div class="header-desc">查看并管理平台学生及管理员的学习数据</div>
                     </div>
                 </template>
+
+                <!-- 搜索表单 -->
                 <div class="search-section">
                     <el-form :inline="true" :model="searchForm">
                         <el-form-item label="身份角色">
@@ -28,6 +30,8 @@
                         </el-form-item>
                     </el-form>
                 </div>
+                
+                <!-- 数据表格 -->
                 <el-table :data="tableData" v-loading="loading" class="modern-table" stripe>
                     <el-table-column prop="id" label="ID" width="60" align="center" />
                     <el-table-column label="用户信息" min-width="180">
@@ -152,6 +156,8 @@
                 </div>
             </el-card>
         </div>
+
+        <!-- 用户画像 -->
         <el-drawer v-model="drawerVisible" :title="`${currentUser?.nickname} 的学习画像`" size="550px" destroy-on-close
             custom-class="stats-drawer">
             <div v-loading="statsLoading" class="drawer-inner">
@@ -366,7 +372,6 @@ onUnmounted(() => { resizeObserver?.disconnect() })
 <style scoped>
 .content-wrapper {
     width: 100%;
-    max-width: 1400px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -377,7 +382,7 @@ onUnmounted(() => { resizeObserver?.disconnect() })
     background: #ffffff;
 }
 
-/* 移除 el-card 头部底部的分割线 */
+/* el-card 头部底部的分割线 */
 :deep(.el-card__header) {
     padding-bottom: 15px;
 }

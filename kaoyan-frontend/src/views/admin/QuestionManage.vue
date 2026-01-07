@@ -41,7 +41,7 @@
             </el-form>
 
             <!-- 数据表格 -->
-            <el-table :data="tableData" border stripe v-loading="loading" class="custom-table">
+            <el-table :data="tableData" v-loading="loading" class="modern-table" stripe>
                 <el-table-column prop="id" label="ID" width="70" align="center" />
                 <el-table-column prop="content" label="题干内容" show-overflow-tooltip min-width="250" />
                 <el-table-column prop="answer" label="答案" width="80" align="center" show-overflow-tooltip />
@@ -54,7 +54,7 @@
                                 {{ name }}
                             </el-tag>
                         </template>
-                        <el-tag v-else size="small" type="info">未关联</el-tag>
+                        <el-tag v-else size="small" type="info" class="text-muted">未关联</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column label="书本" width="180" align="center">
@@ -64,7 +64,7 @@
                                 {{ name }}
                             </el-tag>
                         </template>
-                        <el-tag v-else size="small" type="info">未关联</el-tag>
+                        <el-tag v-else size="small" type="info" class="text-muted">未关联</el-tag>
                     </template>
                 </el-table-column>
 
@@ -82,7 +82,9 @@
                 </el-table-column>
                 <el-table-column prop="createTime" label="导入时间" width="160" align="center">
                     <template #default="scope">
+                        <div class="full-time">   
                         {{ scope.row.createTime ? scope.row.createTime.replace('T', ' ').substring(0, 19) : '-' }}
+                        </div>
                     </template>
                 </el-table-column>
 
@@ -298,7 +300,7 @@
                             {{ name }}
                         </el-tag>
                     </template>
-                    <span v-else>未关联</span>
+                    <span v-else class="text-muted">未关联</span>
                 </el-descriptions-item>
                 <el-descriptions-item label="书本">
                     <template v-if="viewQuestion.bookNames && viewQuestion.bookNames.length">
@@ -306,7 +308,7 @@
                             {{ name }}
                         </el-tag>
                     </template>
-                    <span v-else>未关联</span>
+                    <span v-else class="text-muted">未关联</span>
                 </el-descriptions-item>
                 <el-descriptions-item label="标签">{{ Array.isArray(viewQuestion.tags) ? viewQuestion.tags.join(', ') : '无'
                     }}</el-descriptions-item>
@@ -740,7 +742,7 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
+    /* padding: 4px 0; */
 }
 
 .title-text {
@@ -771,6 +773,84 @@ onMounted(() => {
     margin-bottom: 20px;
     border: 1px solid #ebeef5;
 }
+
+/* 表格 */
+.modern-table {
+    font-size: 14px;
+}
+
+/* 注册日期文字 */
+.full-time {
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #475569;
+}
+
+/* 暂无数据的文字颜色 */
+.text-muted {
+    color: #cbd5e1;
+    font-style: italic;
+    font-size: 13px;
+}
+
+/* 现代表格细节微调 */
+:deep(.el-table__header th) {
+    background-color: #f8fafc !important;
+    color: #475569;
+    font-weight: 600;
+}
+
+.modern-table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 翻页栏容器 */
+.pagination-container {
+    margin-top: 25px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: center;
+    background: #fdfdfd;
+    border-radius: 0 0 8px 8px;
+}
+
+/* Element Plus 分页样式 */
+:deep(.el-pagination.is-background .el-pager li) {
+    background-color: #fff;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+/* 激活状态的页码样式 */
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+    background-color: #409eff;
+    color: #fff;
+    border-color: #409eff;
+    box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+}
+
+/* 悬停效果 */
+:deep(.el-pagination.is-background .el-pager li:hover) {
+    color: #409eff;
+    border-color: #409eff;
+}
+
+/* 总条数和跳页文字颜色 */
+:deep(.el-pagination__total),
+:deep(.el-pagination__jump) {
+    color: #606266;
+    font-size: 13px;
+}
+
+/* 输入框圆角优化 */
+:deep(.el-input__wrapper) {
+    border-radius: 6px !important;
+}
+
+
 
 /* 题目内容容器 */
 .content-editor-container {

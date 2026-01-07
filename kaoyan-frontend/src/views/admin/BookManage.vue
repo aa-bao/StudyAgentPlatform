@@ -9,7 +9,6 @@
                     </div>
                     <el-button type="primary" icon="Plus" @click="handleAdd">新增习题册</el-button>
                 </div>
-
                 <div class="search-section">
                     <el-form :inline="true" :model="searchForm">
                         <el-form-item label="所属科目">
@@ -429,13 +428,32 @@ onMounted(() => {
     align-items: center;
     margin-bottom: 24px;
     padding: 10px 5px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+:deep(.el-card__header) {
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f2f5 !important;
 }
 
 .title-text {
     font-size: 18px;
     font-weight: 600;
-    color: #303133;
-    margin-bottom: 8px;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
 }
 
 .header-desc {
@@ -443,7 +461,7 @@ onMounted(() => {
     color: #909399;
 }
 
-/* 搜索区域 - 采用和用户页一样的背景 */
+/* 搜索区域 */
 .search-section {
     background-color: #f8faff;
     padding: 18px 20px;
@@ -453,7 +471,6 @@ onMounted(() => {
 
 .search-section :deep(.el-form-item) {
     margin-bottom: 0;
-    /* 搜索行不需要底边距 */
 }
 
 /* 表格内部样式 */
