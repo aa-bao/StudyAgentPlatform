@@ -29,4 +29,7 @@ public class Book {
 
     @TableField(exist = false)
     private List<Integer> subjectIds; // 所属科目ID列表（支持多科目关联）
+
+    @TableField(exist = false)
+    private List<String> subjectNames; // 所属科目名称列表（与subjectIds对应）
 }

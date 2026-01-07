@@ -29,13 +29,16 @@
                 </div>
 
                 <el-table :data="tableData" v-loading="loading" class="modern-table">
-                    <el-table-column prop="id" label="ID" width="70" align="center" />
+                    <!-- ID 列已移除 -->
 
                     <el-table-column label="习题册信息" min-width="250">
                         <template #default="scope">
                             <div class="book-info-cell">
-                                <div class="nickname">{{ scope.row.name }}</div>
-                                <div class="username">{{ scope.row.description || '暂无描述' }}</div>
+                                <div class="nickname">
+                                    <el-icon class="book-icon"><Notebook /></el-icon>
+                                    <span>{{ scope.row.name }}</span>
+                                </div>
+                                <div class="book-description">{{ scope.row.description || '暂无描述' }}</div>
                             </div>
                         </template>
                     </el-table-column>
@@ -293,14 +296,7 @@ const loadData = async () => {
         const books = data.records || []
         console.log('原始习题册数据:', books)
 
-        // 为每本书获取关联的科目名称
-        for (const book of books) {
-            if (book.id) {
-                const subjectNames = await getSubjectNamesByBookId(book.id)
-                book.subjectNames = subjectNames
-            }
-        }
-
+        // 后端已经返回了subjectNames，无需再次请求
         tableData.value = books
         total.value = data.total || 0
         console.log('习题册数据:', tableData.value)
@@ -310,41 +306,6 @@ const loadData = async () => {
     } finally {
         loading.value = false
     }
-}
-
-// 获取书籍关联的科目名称
-const getSubjectNamesByBookId = async (bookId) => {
-    try {
-        const res = await request.get(`/book/${bookId}`)
-        const book = res.data
-        if (book && book.subjectId) {
-            // 查找科目名称
-            return findSubjectNames([book.subjectId])
-        }
-        return []
-    } catch (e) {
-        console.error('获取科目名称失败:', e)
-        return []
-    }
-}
-
-// 查找科目名称
-const findSubjectNames = (subjectIds) => {
-    if (!subjectIds || subjectIds.length === 0) return []
-
-    const names = []
-    const findInTree = (nodes, targetIds) => {
-        for (const node of nodes) {
-            if (targetIds.includes(node.id)) {
-                names.push(node.name)
-            }
-            if (node.children) {
-                findInTree(node.children, targetIds)
-            }
-        }
-    }
-    findInTree(subjectTree.value, subjectIds)
-    return names
 }
 
 // 重置搜索
@@ -509,9 +470,21 @@ onMounted(() => {
 .nickname {
     font-weight: 600;
     color: #303133;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.username {
+.book-icon {
+    font-size: 16px;
+    color: #409eff;
+    background: #ecf5ff;
+    padding: 6px;
+    border-radius: 6px;
+    box-sizing: content-box;
+}
+
+.book-description {
     font-size: 12px;
     color: #909399;
     /* 描述太长时显示省略号 */

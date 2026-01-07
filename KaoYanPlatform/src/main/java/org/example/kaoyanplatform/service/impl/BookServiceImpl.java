@@ -5,18 +5,24 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.example.kaoyanplatform.entity.Book;
 import org.example.kaoyanplatform.entity.MapSubjectBook;
+import org.example.kaoyanplatform.entity.Subject;
 import org.example.kaoyanplatform.entity.dto.BookDTO;
 import org.example.kaoyanplatform.mapper.BookMapper;
 import org.example.kaoyanplatform.mapper.MapSubjectBookMapper;
+import org.example.kaoyanplatform.mapper.SubjectMapper;
 import org.example.kaoyanplatform.service.BookService;
 import org.example.kaoyanplatform.service.MapSubjectBookService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 习题册Service实现类
@@ -25,11 +31,16 @@ import java.util.List;
 @Service
 public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements BookService {
 
+    private static final Logger log = LoggerFactory.getLogger(BookServiceImpl.class);
+
     @Autowired
     private MapSubjectBookMapper mapSubjectBookMapper;
 
     @Autowired
     private MapSubjectBookService mapSubjectBookService;
+
+    @Autowired
+    private SubjectMapper subjectMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -104,6 +115,68 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
         }
 
         queryWrapper.orderByDesc("id");
-        return page(page, queryWrapper);
+        Page<Book> resultPage = page(page, queryWrapper);
+        // 填充每条记录的关联信息
+        fillBookRelationsBatch(resultPage.getRecords());
+        return resultPage;
+    }
+
+    /**
+     * 填充单本书本的关联信息（subjectIds, subjectId, subjectName, subjectNames）
+     * @param book 书本对象
+     */
+    private void fillBookRelations(Book book) {
+        if (book == null) return;
+
+        log.debug("开始填充书本关联信息，bookId={}", book.getId());
+
+        // 1. 获取关联的科目ID列表
+        List<Integer> subjectIds = mapSubjectBookService.getSubjectIdsByBookId(book.getId());
+        book.setSubjectIds(subjectIds);
+        log.debug("bookId={} 的 subjectIds={}", book.getId(), subjectIds);
+
+        // 2. 设置主科目ID（兼容旧字段）
+        if (subjectIds != null && !subjectIds.isEmpty()) {
+            book.setSubjectId(subjectIds.get(0));
+
+            // 3. 获取所有科目名称
+            List<String> subjectNames = new ArrayList<>();
+            for (Integer subjectId : subjectIds) {
+                Subject subject = subjectMapper.selectById(subjectId);
+                if (subject != null) {
+                    subjectNames.add(subject.getName());
+                    log.debug("subjectId={} 对应的 subjectName={}", subjectId, subject.getName());
+                }
+            }
+            book.setSubjectNames(subjectNames);
+            log.debug("bookId={} 的 subjectNames={}", book.getId(), subjectNames);
+
+            // 4. 设置主科目名称（兼容旧字段，取第一个）
+            if (!subjectNames.isEmpty()) {
+                book.setSubjectName(subjectNames.get(0));
+            }
+        }
+    }
+
+    /**
+     * 批量填充书本列表的关联信息
+     * @param books 书本列表
+     */
+    private void fillBookRelationsBatch(List<Book> books) {
+        if (books == null || books.isEmpty()) return;
+
+        for (Book book : books) {
+            fillBookRelations(book);
+        }
+    }
+
+    /**
+     * 获取所有书本列表（带关联信息）
+     * @return 带关联信息的书本列表
+     */
+    public List<Book> listWithRelations() {
+        List<Book> books = list();
+        fillBookRelationsBatch(books);
+        return books;
     }
 }

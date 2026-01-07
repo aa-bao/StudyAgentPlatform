@@ -35,14 +35,20 @@ public class Question {
 
     // 非数据库字段：用于查询时的关联信息
     @TableField(exist = false)
-    private Integer subjectId; // 所属科目ID（通过map_question_subject查询）
+    private List<Integer> subjectIds; // 所属科目ID列表（通过map_question_subject查询）
 
     @TableField(exist = false)
-    private Integer bookId; // 所属习题册ID（通过map_question_book查询）
+    private List<Integer> bookIds; // 所属习题册ID列表（通过map_question_book查询）
 
     @TableField(exist = false)
-    private String bookName; // 习题册名称（关联查询时使用）
+    private String bookName; // 习题册名称（兼容旧版本，已废弃，请使用bookNames）
 
     @TableField(exist = false)
-    private String subjectName; // 科目名称（关联查询时使用）
+    private List<String> bookNames; // 习题册名称列表
+
+    @TableField(exist = false)
+    private String subjectName; // 科目名称（兼容旧版本，已废弃，请使用subjectNames）
+
+    @TableField(exist = false)
+    private List<String> subjectNames; // 科目名称列表
 }

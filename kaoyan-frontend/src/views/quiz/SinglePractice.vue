@@ -953,12 +953,6 @@ const deleteUserTag = (tag) => {
 // Latex 渲染函数
 const renderLatex = (content) => {
   if (!content) return ''
-  // 匹配 $...$ 或 $$...$$
-  // 简单处理：将 $...$ 替换为 katex 渲染结果
-  // 注意：需要处理转义字符
-
-  // 使用正则替换：$ ... $
-  // 暂时只支持行内公式 $...$
   return content.replace(/\$([^$]+)\$/g, (match, tex) => {
     try {
       return katex.renderToString(tex, {

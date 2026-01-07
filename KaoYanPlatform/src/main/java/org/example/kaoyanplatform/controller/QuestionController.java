@@ -3,18 +3,22 @@ package org.example.kaoyanplatform.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.entity.Question;
 import org.example.kaoyanplatform.entity.MistakeRecord;
+import org.example.kaoyanplatform.entity.Book;
+import org.example.kaoyanplatform.entity.Subject;
 import org.example.kaoyanplatform.entity.dto.QuestionDTO;
+import org.example.kaoyanplatform.entity.dto.LLMQuestionOutputDTO;
 import org.example.kaoyanplatform.mapper.QuestionMapper;
 import org.example.kaoyanplatform.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,6 +38,9 @@ public class QuestionController {
 
     @Autowired
     private SubjectService subjectService;
+
+    @Autowired
+    private BookService bookService;
 
     @Autowired
     private MapQuestionSubjectService mapQuestionSubjectService;
@@ -109,16 +116,48 @@ public class QuestionController {
 
     // 7. 获取题目详情
     @GetMapping("/{id}")
-    @Operation(summary = "获取题目详情", description = "包含题目基本信息及关联的第一个书本和科目ID。")
+    @Operation(summary = "获取题目详情", description = "包含题目基本信息及关联的所有书本和科目ID列表。")
     public Result getQuestionById(@PathVariable Long id) {
         Question question = questionMapper.selectById(id);
         if (question == null) return Result.error("题目不存在");
 
         List<Integer> bookIds = mapQuestionBookService.getBookIdsByQuestionId(id);
-        question.setBookId(bookIds != null && !bookIds.isEmpty() ? bookIds.get(0) : null);
+        question.setBookIds(bookIds != null ? bookIds : Collections.emptyList());
+        
+        // 填充所有书本名称
+        if (bookIds != null && !bookIds.isEmpty()) {
+            List<String> bookNames = new ArrayList<>();
+            for (Integer bookId : bookIds) {
+                Book book = bookService.getById(bookId);
+                if (book != null) {
+                    bookNames.add(book.getName());
+                }
+            }
+            question.setBookNames(bookNames);
+            question.setBookName(bookNames.isEmpty() ? null : bookNames.get(0));
+        } else {
+            question.setBookNames(Collections.emptyList());
+            question.setBookName(null);
+        }
 
         List<Integer> subjectIds = mapQuestionSubjectService.getSubjectIdsByQuestionId(id);
-        question.setSubjectId(subjectIds != null && !subjectIds.isEmpty() ? subjectIds.get(0) : null);
+        question.setSubjectIds(subjectIds != null ? subjectIds : Collections.emptyList());
+        
+        // 填充所有科目名称
+        if (subjectIds != null && !subjectIds.isEmpty()) {
+            List<String> subjectNames = new ArrayList<>();
+            for (Integer subjectId : subjectIds) {
+                Subject subject = subjectService.getById(subjectId);
+                if (subject != null) {
+                    subjectNames.add(subject.getName());
+                }
+            }
+            question.setSubjectNames(subjectNames);
+            question.setSubjectName(subjectNames.isEmpty() ? null : subjectNames.get(0));
+        } else {
+            question.setSubjectNames(Collections.emptyList());
+            question.setSubjectName(null);
+        }
 
         return Result.success(question);
     }
@@ -173,5 +212,22 @@ public class QuestionController {
             mistakeRecordService.save(mistakeRecord);
         }
         return Result.success("错题已记录");
+    }
+
+    @PostMapping("/recognize")
+    @Operation(summary = "AI 图片识别题目", description = "利用多模态大模型识别图片中的题目和 LaTeX 公式，返回结构化 JSON")
+    public Result<LLMQuestionOutputDTO> recognize(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return Result.error("文件不能为空");
+        }
+
+        try {
+            // 调用 LLM 服务，返回结构化 DTO
+            LLMQuestionOutputDTO result = questionService.recognizeImageToText(file);
+            return Result.success(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("识别出错：" + e.getMessage());
+        }
     }
 }

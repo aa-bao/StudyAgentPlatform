@@ -15,3 +15,7 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
+
+zhipu:
+  api:
+    key: e90579b6f4df4a8ab4b9381dfa1b7466.cgxYg4MwekKDlZHO

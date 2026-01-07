@@ -14,15 +14,23 @@
             <!-- 搜索表单 -->
             <el-form :inline="true" :model="searchForm" class="search-form">
                 <el-form-item label="所属科目">
-                    <el-select v-model="searchForm.subjectId" placeholder="请选择科目" clearable style="width: 200px" @change="loadData">
-                        <el-option label="考研政治" :value="1" />
-                        <el-option label="考研英语一" :value="2" />
-                        <el-option label="考研数学一" :value="3" />
-                        <el-option label="计算机 408" :value="4" />
-                    </el-select>
+                    <el-tree-select v-model="form.subjectIds" :data="subjects"
+                        :props="{ label: 'name', value: 'id', children: 'children' }" multiple collapse-tags
+                        style="width: 100%">
+                        <template #default="{ node, data }">
+                            <div class="custom-tree-node">
+                                <span class="node-text">{{ node.label }}</span>
+                                <el-checkbox v-if="data.children && data.children.length > 0"
+                                    :model-value="isNodeFullySelected(data)"
+                                    :indeterminate="isNodePartiallySelected(data)" @change="handleSelectAll(data)"
+                                    @click.stop class="node-checkbox">全选</el-checkbox>
+                            </div>
+                        </template>
+                    </el-tree-select>
                 </el-form-item>
                 <el-form-item label="习题册">
-                    <el-select v-model="searchForm.bookId" placeholder="请选择习题册" clearable style="width: 200px" @change="loadData">
+                    <el-select v-model="searchForm.bookId" placeholder="请选择习题册" clearable style="width: 200px"
+                        @change="loadData">
                         <el-option v-for="book in books" :key="book.id" :label="book.name" :value="book.id" />
                     </el-select>
                 </el-form-item>
@@ -35,33 +43,50 @@
             <!-- 数据表格 -->
             <el-table :data="tableData" border stripe v-loading="loading" class="custom-table">
                 <el-table-column prop="id" label="ID" width="70" align="center" />
-                <el-table-column prop="content" label="题干内容" show-overflow-tooltip min-width="200" />
-                <el-table-column label="科目" width="120" align="center">
+                <el-table-column prop="content" label="题干内容" show-overflow-tooltip min-width="250" />
+                <el-table-column prop="answer" label="答案" width="80" align="center" show-overflow-tooltip />
+                <el-table-column prop="analysis" label="解析" show-overflow-tooltip min-width="150" />
+
+                <el-table-column label="科目" width="150" align="center">
                     <template #default="scope">
-                        <el-tag v-if="scope.row.subjectName" size="small">{{ scope.row.subjectName }}</el-tag>
+                        <template v-if="scope.row.subjectNames && scope.row.subjectNames.length">
+                            <el-tag v-for="(name, index) in scope.row.subjectNames" :key="index" size="small" style="margin: 2px;">
+                                {{ name }}
+                            </el-tag>
+                        </template>
                         <el-tag v-else size="small" type="info">未关联</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="书本" width="120" align="center">
+                <el-table-column label="书本" width="180" align="center">
                     <template #default="scope">
-                        <el-tag v-if="scope.row.bookName" size="small" type="success">{{ scope.row.bookName }}</el-tag>
+                        <template v-if="scope.row.bookNames && scope.row.bookNames.length">
+                            <el-tag v-for="(name, index) in scope.row.bookNames" :key="index" size="small" type="success" style="margin: 2px;">
+                                {{ name }}
+                            </el-tag>
+                        </template>
                         <el-tag v-else size="small" type="info">未关联</el-tag>
                     </template>
                 </el-table-column>
+
                 <el-table-column prop="type" label="类型" width="80" align="center">
                     <template #default="scope">
-                        <el-tag :type="scope.row.type === 1 ? '' : 'success'">
-                            {{ scope.row.type === 1 ? '单选' : scope.row.type === 2 ? '多选' : '其他' }}
+                        <el-tag :type="String(scope.row.type) === '1' ? 'primary' : 'success'">
+                            {{ getTypeLabel(scope.row.type) }}
                         </el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="difficulty" label="难度" width="100" align="center">
                     <template #default="scope">
-                        <el-rate v-model="scope.row.difficulty" disabled show-score />
+                        <el-rate v-model="scope.row.difficulty" disabled show-score text-color="#ff9900" />
                     </template>
                 </el-table-column>
-                <el-table-column prop="answer" label="答案" width="80" align="center" />
-                <el-table-column label="操作" width="180" align="center" fixed="right">
+                <el-table-column prop="createTime" label="导入时间" width="160" align="center">
+                    <template #default="scope">
+                        {{ scope.row.createTime ? scope.row.createTime.replace('T', ' ').substring(0, 19) : '-' }}
+                    </template>
+                </el-table-column>
+
+                <el-table-column label="操作" width="150" align="center" fixed="right">
                     <template #default="scope">
                         <el-button size="small" type="primary" link @click="handleEdit(scope.row)">编辑</el-button>
                         <el-button size="small" type="info" link @click="handleView(scope.row)">查看</el-button>
@@ -72,107 +97,271 @@
 
             <!-- 分页 -->
             <div class="pagination-container">
-                <el-pagination
-                    :current-page="pageNum"
-                    :page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
-                    layout="total, sizes, prev, pager, next, jumper"
-                    :total="total"
-                    @size-change="handleSizeChange"
-                    @current-change="handlePageChange"
-                />
+                <el-pagination :current-page="pageNum" :page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+                    layout="total, sizes, prev, pager, next, jumper" :total="total" @size-change="handleSizeChange"
+                    @current-change="handlePageChange" />
             </div>
         </el-card>
 
         <!-- 编辑/新增对话框 -->
-        <el-dialog v-model="dialogVisible" :title="form.id ? '编辑题目' : '新增题目'" width="800px" destroy-on-close @close="resetForm">
-            <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-                <el-row :gutter="20">
-                    <el-col :span="12">
-                        <el-form-item label="题目类型" prop="type">
-                            <el-select v-model="form.type" placeholder="请选择题目类型" style="width: 100%">
-                                <el-option label="单选题" :value="1" />
-                                <el-option label="多选题" :value="2" />
-                                <el-option label="填空题" :value="3" />
-                                <el-option label="简答题" :value="4" />
-                            </el-select>
-                        </el-form-item>
+        <el-dialog v-model="dialogVisible" :title="form.id ? '编辑题目' : '新增题目'" width="1200px" destroy-on-close
+            @close="resetForm" class="question-dialog" top="3vh">
+            <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="question-form">
+                <div class="form-scroll-area">
+                    <!-- 第一行：基础属性配置 -->
+                    <div class="config-panel">
+                        <el-row :gutter="20">
+                            <el-col :span="6">
+                                <el-form-item label="所属科目" prop="subjectIds">
+                                    <el-tree-select v-model="form.subjectIds" :data="subjects"
+                                        :props="{ label: 'name', value: 'id', children: 'children' }"
+                                        placeholder="请选择所属科目" check-strictly filterable multiple
+                                        collapse-tags collapse-tags-tooltip style="width: 100%"
+                                        :render-after-expand="false" default-expand-all>
+                                        <template #default="{ node, data }">
+                                            <span class="tree-node-label">
+                                                <span>{{ node.label }}</span>
+                                                <el-checkbox 
+                                                    v-if="data.children && data.children.length > 0"
+                                                    :model-value="isNodeFullySelected(data)"
+                                                    :indeterminate="isNodePartiallySelected(data)"
+                                                    @change="handleSelectAll(data)"
+                                                    @click.stop
+                                                    class="select-all-checkbox"
+                                                >全选</el-checkbox>
+                                            </span>
+                                        </template>
+                                    </el-tree-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-form-item label="所属书本" prop="bookIds">
+                                    <el-select v-model="form.bookIds" placeholder="选择习题册" style="width: 100%" filterable multiple collapse-tags collapse-tags-tooltip>
+                                        <el-option v-for="book in books" :key="book.id" :label="book.name"
+                                            :value="book.id" />
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-form-item label="题目类型" prop="type">
+                                    <el-select v-model="form.type" placeholder="选择类型" style="width: 100%">
+                                        <el-option label="单项选择题" :value="1" />
+                                        <el-option label="多项选择题" :value="2" />
+                                        <el-option label="填空题" :value="3" />
+                                        <el-option label="简答题" :value="4" />
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-form-item label="难度等级" prop="difficulty">
+                                    <el-rate v-model="form.difficulty" show-score
+                                        :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+                                        style="height: 32px; display: flex; align-items: center;" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </div>
 
-                        <el-form-item label="难度" prop="difficulty">
-                            <el-rate v-model="form.difficulty" show-score />
+                    <!-- 第二行：题目内容 -->
+                    <div class="content-panel full-row">
+                        <div class="section-title">
+                            <span><el-icon><EditPen /></el-icon> 题目内容</span>
+                            <el-upload ref="uploadRef" action="#" :auto-upload="false" :show-file-list="false"
+                                :on-change="handleAiRecognize" accept="image/*" class="ai-uploader">
+                                <el-button type="primary" size="small" :loading="recognizing" plain icon="Picture">
+                                    AI 图片转文字
+                                </el-button>
+                            </el-upload>
+                        </div>
+                        <el-form-item prop="content">
+                            <div class="content-editor-container">
+                                <el-input v-model="form.content" type="textarea" :rows="5"
+                                    placeholder="请输入题干内容，支持 LaTeX 公式..." resize="none" />
+                                <div class="latex-preview-box" v-if="form.content">
+                                    <div class="preview-label"><el-icon><View /></el-icon> 实时渲染预览：</div>
+                                    <div class="preview-content" v-html="renderLatex(form.content)"></div>
+                                </div>
+                            </div>
                         </el-form-item>
+                    </div>
 
+                    <!-- 第三行：选项设置（简化为固定4个选项，不可删除） -->
+                    <div class="options-panel" v-if="form.type === 1 || form.type === 2">
+                        <div class="section-title">
+                            <span>
+                                <el-icon>
+                                    <List />
+                                </el-icon> 选项设置
+                            </span>
+                            <span class="text-info" style="font-size: 12px; font-weight: normal; color: #909399;">
+                                请录入选项内容，支持 LaTeX 公式
+                            </span>
+                        </div>
+                        <div class="options-grid">
+                            <div v-for="(opt, index) in form.options" :key="index" class="option-row">
+                                <div class="option-label">{{ String.fromCharCode(65 + index) }}</div>
+
+                                <div class="option-edit-main">
+                                    <el-input v-model="form.options[index]" placeholder="输入该选项内容..." type="textarea"
+                                        :autosize="{ minRows: 1, maxRows: 3 }" class="option-input" />
+                                    <div class="option-preview"
+                                        v-html="renderLatex(form.options[index]) || '<span class=\'placeholder\'>公式预览...</span>'">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 第四行：答案或解析 -->
+                    <div class="content-panel">
+                        <div class="section-title">
+                            <span><el-icon><EditPen /></el-icon>
+                            {{ form.type === 4 ? '答案解析' : '题目解析' }}
+                            </span>
+                        </div>
+                        <!-- 修改第210行左右的代码 -->
+                        <el-form-item :prop="form.type === 4 ? 'answer' : 'analysis'">
+                            <div class="content-editor-container">
+                                <el-input v-model="dynamicContent" type="textarea" :rows="4"
+                                    :placeholder="form.type === 4 ? '请输入答案解析...' : '请输入详细解析，支持 LaTeX 公式...'"
+                                    resize="none" />
+                                <div class="latex-preview-box" v-if="dynamicContent">
+                                    <div class="preview-label">
+                                        <el-icon>
+                                            <View />
+                                        </el-icon> 实时渲染预览：
+                                    </div>
+                                    <div class="preview-content" v-html="renderLatex(dynamicContent)"></div>
+                                </div>
+                            </div>
+                        </el-form-item>
+                    </div>
+
+                    <!-- 第五行：正确答案（非简答题显示）、标签 -->
+                    <div class="meta-panel" v-if="form.type !== 4">
+                        <el-row :gutter="20">
+                            <el-col :span="8">
+                                <el-form-item label="正确答案" prop="answer">
+                                    <el-input v-model="form.answer"
+                                        :placeholder="form.type === 1 ? '如：A' : form.type === 2 ? '如：AB' : '请输入答案'" />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="8">
+                                <el-form-item label="题目标签" prop="tags">
+                                    <el-select v-model="form.tags" multiple filterable allow-create default-first-option
+                                        placeholder="输入标签回车添加" style="width: 100%">
+                                        <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </div>
+
+                    <!-- 简答题的标签 -->
+                    <div class="meta-panel" v-else>
                         <el-form-item label="题目标签" prop="tags">
-                            <el-select v-model="form.tags" multiple filterable allow-create placeholder="请输入标签" style="width: 100%">
+                            <el-select v-model="form.tags" multiple filterable allow-create default-first-option
+                                placeholder="输入标签回车添加" style="width: 50%">
                                 <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
                             </el-select>
                         </el-form-item>
-
-                        <el-form-item label="题目来源" prop="source">
-                            <el-input v-model="form.source" placeholder="如：2018年考研真题" />
-                        </el-form-item>
-                    </el-col>
-
-                    <el-col :span="12">
-                        <el-form-item label="题干内容" prop="content">
-                            <el-input v-model="form.content" type="textarea" :rows="4" placeholder="支持LaTeX公式" />
-                        </el-form-item>
-
-                        <template v-if="form.type === 1 || form.type === 2">
-                            <el-form-item label="选项设置" prop="options">
-                                <div v-for="(opt, index) in form.options" :key="index" class="option-item">
-                                    <el-input v-model="form.options[index]" placeholder="请输入选项内容">
-                                        <template #prepend>{{ String.fromCharCode(65 + index) }}</template>
-                                        <template #append>
-                                            <el-button icon="Delete" @click="removeOption(index)" :disabled="form.options.length <= 2" />
-                                        </template>
-                                    </el-input>
-                                </div>
-                                <el-button v-if="form.options.length < 8" type="success" size="small" icon="Plus" @click="addOption" style="margin-top: 8px">
-                                    添加选项
-                                </el-button>
-                            </el-form-item>
-                        </template>
-
-                        <el-form-item label="正确答案" prop="answer">
-                            <el-input v-model="form.answer" :placeholder="form.type === 1 ? '如：A' : form.type === 2 ? '如：AB' : '请输入答案'" />
-                        </el-form-item>
-
-                        <el-form-item label="解析" prop="analysis">
-                            <el-input v-model="form.analysis" type="textarea" :rows="3" placeholder="支持LaTeX公式" />
-                        </el-form-item>
-                    </el-col>
-                </el-row>
+                    </div>
+                </div>
             </el-form>
             <template #footer>
-                <el-button @click="dialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="saving" @click="saveQuestion">确定保存</el-button>
+                <div class="dialog-footer">
+                    <el-button @click="dialogVisible = false">取 消</el-button>
+                    <el-button type="primary" :loading="saving" @click="saveQuestion">保 存</el-button>
+                </div>
             </template>
         </el-dialog>
 
         <!-- 查看详情对话框 -->
         <el-dialog v-model="viewDialogVisible" title="题目详情" width="700px">
             <el-descriptions :column="1" border v-if="viewQuestion">
-                <el-descriptions-item label="题干内容">{{ viewQuestion.content }}</el-descriptions-item>
+                <el-descriptions-item label="题干内容">
+                    <div v-html="renderLatex(viewQuestion.content)"></div>
+                </el-descriptions-item>
                 <el-descriptions-item v-if="viewQuestion.options && viewQuestion.options.length" label="选项">
                     <div v-for="(opt, index) in viewQuestion.options" :key="index">
-                        {{ String.fromCharCode(65 + index) }}. {{ opt }}
+                        {{ String.fromCharCode(65 + index) }}. <span v-html="renderLatex(opt)"></span>
                     </div>
                 </el-descriptions-item>
                 <el-descriptions-item label="正确答案">{{ viewQuestion.answer }}</el-descriptions-item>
-                <el-descriptions-item label="解析">{{ viewQuestion.analysis || '暂无解析' }}</el-descriptions-item>
+                <el-descriptions-item label="解析">
+                    <div v-html="renderLatex(viewQuestion.analysis || '暂无解析')"></div>
+                </el-descriptions-item>
                 <el-descriptions-item label="难度">{{ viewQuestion.difficulty }}分</el-descriptions-item>
-                <el-descriptions-item label="标签">{{ Array.isArray(viewQuestion.tags) ? viewQuestion.tags.join(', ') : '无' }}</el-descriptions-item>
-                <el-descriptions-item label="来源">{{ viewQuestion.source || '未知' }}</el-descriptions-item>
+                <el-descriptions-item label="科目">
+                    <template v-if="viewQuestion.subjectNames && viewQuestion.subjectNames.length">
+                        <el-tag v-for="(name, index) in viewQuestion.subjectNames" :key="index" size="small" style="margin: 2px;">
+                            {{ name }}
+                        </el-tag>
+                    </template>
+                    <span v-else>未关联</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="书本">
+                    <template v-if="viewQuestion.bookNames && viewQuestion.bookNames.length">
+                        <el-tag v-for="(name, index) in viewQuestion.bookNames" :key="index" size="small" type="success" style="margin: 2px;">
+                            {{ name }}
+                        </el-tag>
+                    </template>
+                    <span v-else>未关联</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="标签">{{ Array.isArray(viewQuestion.tags) ? viewQuestion.tags.join(', ') : '无'
+                    }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import request from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import katex from 'katex'
+
+
+// Latex 渲染函数
+const renderLatex = (content) => {
+    if (!content) return ''
+    // 确保在渲染前，先将 \\ 替换成 \，防止 KaTeX 错误解析转义字符
+    let processedContent = content.replace(/\\\\/g, '\\')
+
+    return processedContent.replace(/\$([^\$]+)\$/g, (match, tex) => {
+        try {
+            return katex.renderToString(tex, {
+                throwOnError: false,
+                displayMode: false
+            })
+        } catch (err) {
+            return match
+        }
+    }).replace(/\$\$([^\$]+)\$\$/g, (match, tex) => { // 块级公式
+        try {
+            return katex.renderToString(tex, {
+                throwOnError: false,
+                displayMode: true
+            })
+        } catch (err) {
+            return match
+        }
+    })
+}
+
+// 创建一个计算属性来处理动态绑定
+const dynamicContent = computed({
+    get() {
+        return form.value.type === 4 ? form.value.answer : form.value.analysis
+    },
+    set(value) {
+        if (form.value.type === 4) {
+            form.value.answer = value
+        } else {
+            form.value.analysis = value
+        }
+    }
+})
 
 // 数据定义
 const loading = ref(false)
@@ -186,36 +375,116 @@ const viewDialogVisible = ref(false)
 const formRef = ref(null)
 
 const searchForm = ref({ subjectId: null, bookId: null })
+const subjects = ref([]) // 新增科目列表
 const books = ref([])
 const viewQuestion = ref(null)
+const recognizing = ref(false)
+const uploadRef = ref(null)
 
 const form = ref({
     id: null,
+    subjectIds: [],
+    bookIds: [],
     type: 1,
     content: '',
     options: ['', '', '', ''],
     answer: '',
     analysis: '',
     difficulty: 3,
-    tags: [],
-    source: ''
+    tags: []
 })
 
 const tagOptions = ref(['考研真题', '模拟题', '易错题', '重点', '基础', '进阶'])
 
+// 校验规则
 const rules = {
+    subjectIds: [{ required: true, message: '请选择所属科目', trigger: 'change' }],
+    bookIds: [{ required: true, message: '请选择所属习题册', trigger: 'change' }],
     type: [{ required: true, message: '请选择题目类型', trigger: 'change' }],
     content: [{ required: true, message: '请输入题干内容', trigger: 'blur' }],
     answer: [{ required: true, message: '请输入正确答案', trigger: 'blur' }],
     difficulty: [{ required: true, message: '请选择难度', trigger: 'change' }]
 }
 
-// 获取书本列表
+// 获取科目列表 (使用 manage-tree 接口获取完整层级结构)
+const loadSubjects = async () => {
+    try {
+        const res = await request.get('/subject/manage-tree')
+        subjects.value = res.data || res || []
+        // console.log('科目树:', subjects.value)
+    } catch (e) {
+        ElMessage.error('获取科目列表失败')
+        console.error(e)
+    }
+}
+
+// 全选/取消全选处理
+const handleSelectAll = (node) => {
+    // 递归收集所有子节点 ID
+    const collectIds = (n) => {
+        const ids = [n.id]
+        if (n.children && n.children.length > 0) {
+            n.children.forEach(child => {
+                ids.push(...collectIds(child))
+            })
+        }
+        return ids
+    }
+    
+    const allIds = collectIds(node)
+    const selectedSet = new Set(form.value.subjectIds)
+    
+    if (selectedSet.has(node.id)) {
+        // 取消全选：移除该节点及其所有子节点
+        allIds.forEach(id => selectedSet.delete(id))
+    } else {
+        // 全选：添加该节点及其所有子节点
+        allIds.forEach(id => selectedSet.add(id))
+    }
+    
+    form.value.subjectIds = Array.from(selectedSet)
+}
+
+// 检测是否全选
+const isNodeFullySelected = (node) => {
+    const collectIds = (n) => {
+        const ids = [n.id]
+        if (n.children && n.children.length > 0) {
+            n.children.forEach(child => {
+                ids.push(...collectIds(child))
+            })
+        }
+        return ids
+    }
+    const allIds = collectIds(node)
+    const selectedSet = new Set(form.value.subjectIds)
+    return allIds.every(id => selectedSet.has(id))
+}
+
+
+// 检测是否部分选中
+const isNodePartiallySelected = (node) => {
+    const collectIds = (n) => {
+        const ids = [n.id]
+        if (n.children && n.children.length > 0) {
+            n.children.forEach(child => {
+                ids.push(...collectIds(child))
+            })
+        }
+        return ids
+    }
+    const allIds = collectIds(node)
+    const selectedSet = new Set(form.value.subjectIds)
+    const selectedCount = allIds.filter(id => selectedSet.has(id)).length
+    return selectedCount > 0 && selectedCount < allIds.length
+}
+
+// 获取书本列表 (同时在搜索和新增中使用)
 const loadBooks = async () => {
     try {
         const res = await request.get('/book/list')
         books.value = res.data || res || []
-        console.log('书本列表:', books.value)
+        // console.log('书本列表:', books.value)
     } catch (e) {
         ElMessage.error('获取书本列表失败')
         console.error(e)
@@ -276,31 +545,19 @@ const getTypeLabel = (type) => {
     return map[type] || '未知'
 }
 
-// 选项操作
-const addOption = () => {
-    if (form.value.options.length < 8) {
-        form.value.options.push('')
-    }
-}
-
-const removeOption = (index) => {
-    if (form.value.options.length > 2) {
-        form.value.options.splice(index, 1)
-    }
-}
-
 // 重置表单
 const resetForm = () => {
     form.value = {
         id: null,
+        subjectIds: [],
+        bookIds: [],
         type: 1,
         content: '',
         options: ['', '', '', ''],
         answer: '',
         analysis: '',
         difficulty: 3,
-        tags: [],
-        source: ''
+        tags: []
     }
     formRef.value?.clearValidate()
 }
@@ -316,14 +573,15 @@ const handleEdit = (row) => {
     console.log('编辑题目:', row)
     form.value = {
         id: row.id,
+        subjectIds: Array.isArray(row.subjectIds) ? [...row.subjectIds] : (row.subjectId ? [row.subjectId] : []),
+        bookIds: Array.isArray(row.bookIds) ? [...row.bookIds] : (row.bookId ? [row.bookId] : []),
         type: row.type,
         content: row.content || '',
         options: Array.isArray(row.options) ? [...row.options] : ['', '', '', ''],
         answer: row.answer || '',
         analysis: row.analysis || '',
         difficulty: row.difficulty || 3,
-        tags: Array.isArray(row.tags) ? [...row.tags] : [],
-        source: row.source || ''
+        tags: Array.isArray(row.tags) ? [...row.tags] : []
     }
     dialogVisible.value = true
 }
@@ -341,8 +599,14 @@ const saveQuestion = async () => {
     saving.value = true
     try {
         const url = form.value.id ? '/question/update' : '/question/add'
-        console.log('保存题目:', form.value)
-        await request.post(url, form.value)
+        
+        // 构造提交数据
+        const payload = {
+            ...form.value
+        }
+        
+        console.log('保存题目:', payload)
+        await request.post(url, payload)
         ElMessage.success(form.value.id ? '修改成功' : '添加成功')
         dialogVisible.value = false
         loadData()
@@ -376,7 +640,9 @@ const handleDelete = (id) => {
 const exportToExcel = () => {
     let csv = '\uFEFFID,类型,科目,书本,题干,答案,难度\n'
     tableData.value.forEach(row => {
-        csv += `${row.id},${getTypeLabel(row.type)},${row.subjectName || '未关联'},${row.bookName || '未关联'},${(row.content || '').replace(/,/g, '，')},${row.answer || ''},${row.difficulty || 0}\n`
+        const subjectNames = row.subjectNames && row.subjectNames.length ? row.subjectNames.join(';') : '未关联'
+        const bookNames = row.bookNames && row.bookNames.length ? row.bookNames.join(';') : '未关联'
+        csv += `${row.id},${getTypeLabel(row.type)},${subjectNames},${bookNames},${(row.content || '').replace(/,/g, '，')},${row.answer || ''},${row.difficulty || 0}\n`
     })
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
@@ -387,68 +653,324 @@ const exportToExcel = () => {
     window.URL.revokeObjectURL(url)
 }
 
+
+// 识别处理函数
+const handleAiRecognize = async (file) => {
+    // console.log('触发识别流程, file.status:', file.status)
+    // 仅处理新增的文件 (status === 'ready')
+    if (file.status !== 'ready') return
+
+    // 防止重复触发
+    if (recognizing.value) return
+
+    const formData = new FormData()
+    formData.append('file', file.raw)
+
+    recognizing.value = true
+    try {
+        // console.log('开始发送请求...')
+        // 调用后端识别接口，设置 60s 超时
+        const res = await request.post('/question/recognize', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000
+        })
+        // console.log('请求返回:', res)
+
+        // 处理后端返回的结构化 JSON
+        if (res.code === 200 && res.data) {
+            const dto = res.data
+            // console.log('识别结果 DTO:', dto)
+
+            // 自动填充表单字段
+            if (dto.content) {
+                form.value.content = dto.content
+            }
+            if (Array.isArray(dto.options) && dto.options.length >= 4) {
+                // 去除选项中的 ABCD 前缀，避免重复
+                form.value.options = dto.options.slice(0, 4).map(opt => {
+                    // 匹配 "A. "、"A)"、"A："、"A " 等格式并去除
+                    return opt.replace(/^[A-Z][\.\) ：:]\s*/, '').replace(/^[A-Z]\s+/, '')
+                })
+            }
+            if (dto.answer) {
+                // 清理答案中的 ABCD 前缀
+                form.value.answer = dto.answer.replace(/^[A-Z][\.\) ：:]\s*/, '').replace(/^[A-Z]\s+/, '')
+            }
+            if (dto.analysis) {
+                form.value.analysis = dto.analysis
+            }
+
+            form.value.type = 1
+
+            ElMessage.success('识别成功！请检查填充的题目内容和选项是否有误。')
+        }
+    } catch (e) {
+        console.error('识别失败:', e)
+        ElMessage.error('AI 识别服务暂时不可用: ' + (e.message || '未知错误'))
+    } finally {
+        setTimeout(() => {
+            recognizing.value = false
+            uploadRef.value?.clearFiles()
+        }, 100)
+    }
+}
+
 onMounted(() => {
     console.log('页面已挂载')
+    loadSubjects()
     loadBooks()
     loadData()
 })
 </script>
 
 <style scoped>
+/* 容器与基础卡片 */
 .admin-container {
-    padding: 16px;
-    background-color: #f5f7f9;
-    min-height: calc(100vh - 120px);
+    min-height: calc(100vh - 84px);
 }
 
 .table-card {
-    border-radius: 8px;
+    border-radius: 12px;
     border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
 }
 
+/* 头部样式 */
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 4px 0;
 }
 
 .title-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
+}
+
+/* 搜索表单 */
+.search-form {
+    background: #fcfcfd;
+    padding: 18px 20px 0;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #ebeef5;
+}
+
+/* 题目内容容器 */
+.content-editor-container {
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    background: #fff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content-editor-container:focus-within {
+    border-color: #409eff;
+}
+
+/* Latex 预览区域 */
+.latex-preview-box {
+    border-top: 1px solid #f0f0f2;
+    padding: 12px;
+}
+
+.preview-label {
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.preview-content {
+    min-height: 40px;
+    font-size: 14px;
+    line-height: 1.6;
     color: #303133;
 }
 
-.search-form {
+/* 选项网格保持两列布局 */
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+/* 题干与解析占满整行 */
+.full-row {
+    width: 100%;
+    margin-bottom: 24px;
+}
+
+.content-editor-container {
+    width: 100%;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
     background: #fff;
-    padding: 12px 0;
-    margin-bottom: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
 }
 
-.custom-table {
-    width: 100% !important;
-    margin-top: 10px;
-}
-
-.pagination-container {
-    margin-top: 20px;
+/* 对话框内模块 */
+.section-title {
     display: flex;
-    justify-content: flex-end;
-}
-
-.option-item {
-    margin-bottom: 12px;
-}
-
-:deep(.el-form-item) {
-    margin-bottom: 18px;
-}
-
-:deep(.el-table) {
-    font-size: 13px;
-}
-
-:deep(.el-table th) {
-    background-color: #f5f7fa;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
     font-weight: 600;
+    margin: 20px 0 12px;
+    color: #303133;
+}
+
+/* 搜索与配置区域优化 */
+.config-panel {
+    background-color: #f8f9fb;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid #edf0f5;
+}
+
+.tree-node-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.select-all-checkbox {
+    margin-left: 10px;
+    font-weight: normal;
+}
+
+/* 编辑器全行容器 */
+.full-width-panel {
+    width: 100%;
+    margin-bottom: 24px;
+}
+
+
+
+/* 选项网格布局 */
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+/* 选项行 */
+.option-row {
+    display: flex;
+    align-items: flex-start;
+    /* 顶部对齐 */
+    gap: 12px;
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    padding: 16px;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.option-row:hover {
+    border-color: #409eff;
+    background-color: #fbfdff;
+}
+
+.option-header-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 左侧字母 */
+.option-label {
+    flex-shrink: 0;
+    background: #409eff;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+/* 右侧主容器：上下布局 */
+.option-edit-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    /* 防止内容溢出 */
+}
+
+/* 输入框外观 */
+.option-input :deep(.el-textarea__inner) {
+    box-shadow: none;
+    background-color: #fcfcfd;
+    border-color: #eef0f5;
+}
+
+.option-input :deep(.el-textarea__inner:focus) {
+    background-color: #fff;
+}
+
+/* 下方预览框 */
+.option-preview {
+    font-size: 13px;
+    color: #606266;
+    padding: 10px;
+    background: #f8f9fb;
+    border-radius: 6px;
+    border-left: 3px solid #e4e7ed;
+    /* 加一个小边框增加区分度 */
+    min-height: 24px;
+    line-height: 1.5;
+}
+
+.placeholder {
+    color: #c0c4cc;
+    font-style: italic;
+}
+
+/* 滚动条美化 */
+.form-scroll-area::-webkit-scrollbar {
+    width: 6px;
+}
+
+.form-scroll-area::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 10px;
+}
+
+/* 分页 */
+.pagination-container {
+    padding: 20px 0 10px;
 }
 </style>
+
+

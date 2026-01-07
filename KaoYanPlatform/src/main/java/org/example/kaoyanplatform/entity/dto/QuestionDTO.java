@@ -1,7 +1,9 @@
 package org.example.kaoyanplatform.entity.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
  * 用于新增/编辑题目时接收前端数据
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class QuestionDTO {
 
     /** 题目ID（编辑时需要） */

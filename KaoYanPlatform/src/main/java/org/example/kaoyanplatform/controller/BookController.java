@@ -9,6 +9,7 @@ import org.example.kaoyanplatform.entity.Book;
 import org.example.kaoyanplatform.entity.dto.BookDTO;
 import org.example.kaoyanplatform.service.BookService;
 import org.example.kaoyanplatform.service.MapSubjectBookService;
+import org.example.kaoyanplatform.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,11 +27,14 @@ public class BookController {
     @Autowired
     private MapSubjectBookService mapSubjectBookService;
 
+    @Autowired
+    private SubjectService subjectService;
+
     // 1. 获取所有书本列表
     @GetMapping("/list")
     @Operation(summary = "获取所有习题册", description = "获取系统中所有习题册列表，无分页。")
     public Result getAllBooks() {
-        return Result.success(bookService.list());
+        return Result.success(bookService.listWithRelations());
     }
 
     // 2. 新增习题册
@@ -75,8 +79,22 @@ public class BookController {
         // 注入关联科目列表
         List<Integer> subjectIds = mapSubjectBookService.getSubjectIdsByBookId(id);
         book.setSubjectIds(subjectIds);
-        // 兼容性处理
-        book.setSubjectId(subjectIds != null && !subjectIds.isEmpty() ? subjectIds.get(0) : null);
+
+        // 注入所有科目名称
+        if (subjectIds != null && !subjectIds.isEmpty()) {
+            java.util.List<String> subjectNames = new java.util.ArrayList<>();
+            for (Integer subjectId : subjectIds) {
+                org.example.kaoyanplatform.entity.Subject subject = subjectService.getById(subjectId);
+                if (subject != null) {
+                    subjectNames.add(subject.getName());
+                }
+            }
+            book.setSubjectNames(subjectNames);
+
+            // 兼容性处理
+            book.setSubjectId(subjectIds.get(0));
+            book.setSubjectName(subjectNames.get(0));
+        }
 
         return Result.success(book);
     }
