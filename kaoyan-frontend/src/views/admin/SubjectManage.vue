@@ -2,8 +2,12 @@
     <div class="subject-manage-container">
         <el-card shadow="never" class="tree-card">
             <template #header>
-                <div class="card-header">
-                    <span class="title-text">科目体系管理</span>
+                <div class="header-section">
+                    <div class="card-header">
+                        <span class="title-text">科目体系管理</span>
+                        <div class="header-desc">统一配置管理考研体系大纲层级结构
+                        </div>
+                    </div>
                     <el-button type="primary" icon="Plus" @click="handleAddRoot">添加顶级科目</el-button>
                 </div>
             </template>
@@ -64,10 +68,10 @@
 
                 <el-form-item label="层级" prop="level">
                     <el-radio-group v-model="form.level">
-                        <el-radio label="1">Level 1 (考试规格)</el-radio>
-                        <el-radio label="2">Level 2 (具体学科)</el-radio>
-                        <el-radio label="3">Level 3 (知识点)</el-radio>
-                        <el-radio label="4">Level 4 (题型方法)</el-radio>
+                        <el-radio value="1">Level 1 (考试规格)</el-radio>
+                        <el-radio value="2">Level 2 (具体学科)</el-radio>
+                        <el-radio value="3">Level 3 (知识点)</el-radio>
+                        <el-radio value="4">Level 4 (题型方法)</el-radio>
                     </el-radio-group>
                 </el-form-item>
 
@@ -250,30 +254,57 @@ onMounted(() => loadTree())
 </script>
 
 <style scoped>
-.subject-manage-container {
-    min-height: calc(100vh - 120px);
+.tree-card {
+    border: none;
+    border-radius: 8px;
 }
 
-.tree-card {
-    border-radius: 8px;
-    border: none;
-    padding: 10px;
+/* 顶部标题样式 */
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* margin-bottom: 24px;
+    padding: 10px 5px; */
+}
+
+:deep(.el-card__header) {
+    padding-bottom: 15px;
 }
 
 .card-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .title-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
-    color: #303133;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
+}
+
+.header-desc {
+    font-size: 13px;
+    color: #909399;
 }
 
 .tree-container {
-    padding: 10px 0;
+    /* padding: 5px 0; */
 }
 
 .tree-tip {

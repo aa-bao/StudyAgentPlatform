@@ -4,6 +4,8 @@
             <template #header>
                 <div class="card-header">
                     <span class="title-text">错题监控中心</span>
+                    <div class="header-desc">错题监控中心，用于查看用户错题的统计信息（如错题数、错题题目数、涉及用户数、涉及科目数等）
+                    </div>
                 </div>
             </template>
 
@@ -170,10 +172,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mistake-monitor-container {
-    min-height: calc(100vh - 120px);
-}
-
 .header-card,
 .heatmap-card,
 .hot-questions-card {
@@ -184,14 +182,33 @@ onMounted(() => {
 
 .card-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .title-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
-    color: #303133;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
+}
+
+.header-desc {
+    font-size: 13px;
+    color: #909399;
 }
 
 .stats-row {
