@@ -58,11 +58,11 @@
             <!-- 选择题 -->
             <div class="section-banner">一、选择题：1～10小题，每小题5分，共50分。</div>
             <div v-for="q in selectionQuestions.slice(0, 5)" :key="q.id" :id="'q' + q.id" class="question-item">
-              <p class="question-title" v-html="q.title"></p>
+              <p class="question-title" v-html="renderLatex(q.title)"></p>
               <div class="options-grid">
                 <label v-for="opt in ['A', 'B', 'C', 'D']" :key="opt" class="option-label">
                   <input type="radio" :name="'q' + q.id" :value="opt" v-model="answers[q.id]" @change="markDone(q.id)">
-                  <span class="option-text">({{ opt }}) {{ q.options ? q.options[opt] : '[内容加载中...]' }}</span>
+                  <span class="option-text" v-html="'(' + opt + ') ' + (q.options ? renderLatex(q.options[opt]) : '[内容加载中...]')"></span>
                 </label>
               </div>
             </div>
@@ -71,11 +71,11 @@
 
           <div class="paper-sheet shadow-effect">
             <div v-for="q in selectionQuestions.slice(5, 10)" :key="q.id" :id="'q' + q.id" class="question-item">
-              <p class="question-title" v-html="q.title"></p>
+              <p class="question-title" v-html="renderLatex(q.title)"></p>
               <div class="options-grid">
                 <label v-for="opt in ['A', 'B', 'C', 'D']" :key="opt" class="option-label">
                   <input type="radio" :name="'q' + q.id" :value="opt" v-model="answers[q.id]" @change="markDone(q.id)">
-                  <span class="option-text">({{ opt }}) {{ q.options ? q.options[opt] : '[内容加载中...]' }}</span>
+                  <span class="option-text" v-html="'(' + opt + ') ' + (q.options ? renderLatex(q.options[opt]) : '[内容加载中...]')"></span>
                 </label>
               </div>
             </div>
@@ -83,81 +83,123 @@
             <!-- 填空题 -->
             <div class="completion-banner">二、填空题：11～16小题。</div>
             <div v-for="q in subjectiveQuestions.slice(0, 3)" :key="q.id" :id="'q' + q.id" class="question-item">
-              <p class="question-title" v-html="q.title"></p>
+              <p class="question-title" v-html="renderLatex(q.title)"></p>
               <textarea v-model="answers[q.id]" @input="markDone(q.id)" class="answer-area" rows="4"
                 placeholder="请输入你的答案..."></textarea>
             </div>
             <footer class="paper-footer">数学（一） 第 2 页（共 3 页）</footer>
           </div>
 
-          <!-- 解答题 -->
-          <div class="paper-sheet shadow-effect">
-            <div v-for="q in subjectiveQuestions.slice(3)" :key="q.id" :id="'q' + q.id" class="question-item">
-              <p class="question-title" v-html="q.title"></p>
+            <!-- 解答题 -->
+            <div class="paper-sheet shadow-effect">
+              <div v-for="q in subjectiveQuestions.slice(3)" :key="q.id" :id="'q' + q.id" class="question-item">
+                <p class="question-title" v-html="renderLatex(q.title)"></p>
               <textarea v-model="answers[q.id]" @input="markDone(q.id)" class="answer-area" rows="4"
                 placeholder="请输入你的答案..."></textarea>
             </div>
             <footer class="paper-footer">数学（一） 第 3 页（共 3 页）</footer>
           </div>
         </div>
-
-        <div v-if="isSubmitted" class="ai-report-container">
-          <h2 class="report-header">✨ AI 智能阅卷报告</h2>
-          <div v-html="aiResultHtml"></div>
-        </div>
       </div>
-
-      <aside class="sidebar-container" :class="{ 'is-hidden': !showSidebar }" :style="sidebarStyle"
-        @mousedown="handleDragStart">
-        <div class="toggle-handler" @click.stop="toggleSidebar">
-          {{ showSidebar ? '▶' : '◀' }}
-          <span class="toggle-text">答题卡</span>
-        </div>
-
-        <div class="sidebar-card card-glow">
-          <h3 class="card-title" style="cursor: move;">
-            <span>答题状态</span>
-            <span class="count-tag">{{ doneCount }} / 22</span>
-          </h3>
-          <div class="answer-card-grid">
-            <div v-for="i in 22" :key="i" @click.stop="scrollToQuestion(i)" class="card-number"
-              :class="{ 'is-done': doneSet.has(i) }">{{ i }}</div>
-          </div>
-        </div>
-      </aside>
     </div>
 
-    <transition name="fade">
-      <div v-show="showDraft" class="full-page-draft">
-        <div class="draft-toolbar">
-          <div class="tool-group">
-            <label>颜色：</label>
-            <input type="color" v-model="brushConfig.color">
-          </div>
-          <div class="tool-group">
-            <label>粗细：</label>
-            <input type="range" min="1" max="10" v-model="brushConfig.size">
-          </div>
-          <div class="divider"></div>
-          <button @click="undoLast" class="draft-btn">↩️ 撤销</button>
-          <button @click="clearCanvas" class="draft-btn danger">🗑️ 清空</button>
-          <button @click="showDraft = false" class="draft-btn primary">关闭</button>
+    <aside class="sidebar-container" :class="{ 'is-hidden': !showSidebar }" :style="sidebarStyle"
+      @mousedown="handleDragStart">
+      <div class="toggle-handler" @click.stop="toggleSidebar">
+        {{ showSidebar ? '▶' : '◀' }}
+        <span class="toggle-text">答题卡</span>
+      </div>
+
+      <div class="sidebar-card card-glow">
+        <h3 class="card-title" style="cursor: move;">
+          <span>答题状态</span>
+          <span class="count-tag">{{ doneCount }} / 22</span>
+        </h3>
+        <div class="answer-card-grid">
+          <div v-for="i in 22" :key="i" @click.stop="scrollToQuestion(i)" class="card-number"
+            :class="{ 'is-done': doneSet.has(i) }">{{ i }}</div>
+        </div>
+      </div>
+    </aside>
+
+  <!-- 草稿区 -->
+  <transition name="fade">
+    <div v-show="showDraft" class="full-page-draft">
+      <div class="draft-toolbar">
+        <div class="tool-group">
+          <label>颜色：</label>
+          <input type="color" v-model="brushConfig.color">
+        </div>
+        <div class="tool-group">
+          <label>粗细：</label>
+          <input type="range" min="1" max="10" v-model="brushConfig.size">
+        </div>
+        <div class="divider"></div>
+        <button @click="undoLast" class="draft-btn">↩️ 撤销</button>
+        <button @click="clearCanvas" class="draft-btn danger">🗑️ 清空</button>
+        <button @click="showDraft = false" class="draft-btn primary">关闭</button>
+      </div>
+
+      <canvas ref="draftCanvas" class="draft-canvas" @mousedown="startDraw" @mousemove="draw" @mouseup="endDraw"
+        @mouseleave="endDraw"></canvas>
+    </div>
+  </transition>
+
+  <!-- 确认提交模态框 -->
+  <transition name="fade">
+    <div v-if="showConfirmModal" class="modal-overlay">
+      <div class="modal-content card-glow">
+        <div class="modal-icon">⚠️</div>
+        <h3 class="modal-title">确认提交试卷</h3>
+        <p class="modal-tips">
+          当前已完成 <span class="highlight">{{ doneCount }}</span> 题，剩余 <span class="highlight">{{ 22 - doneCount
+          }}</span> 题未作答。
+          提交后将无法修改答案，并立即生成 AI 阅卷报告。
+        </p>
+        <div class="modal-btns">
+          <button @click="showConfirmModal = false" class="modal-btn cancel">返回检查</button>
+          <button @click="confirmSubmit" class="modal-btn confirm">确认交卷</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- AI 阅卷报告模态框 -->
+  <transition name="fade">
+    <div v-if="showResultModal" class="modal-overlay">
+      <div class="modal-content report-modal card-glow">
+        <div class="modal-header">
+          <div class="modal-icon success">🎉</div>
+          <h3 class="modal-title">AI 智能阅卷报告</h3>
+        </div>
+        
+        <div class="report-body">
+           <div v-html="aiResultHtml"></div>
         </div>
 
-        <canvas ref="draftCanvas" class="draft-canvas" @mousedown="startDraw" @mousemove="draw" @mouseup="endDraw"
-          @mouseleave="endDraw"></canvas>
+        <div class="modal-btns">
+          <button @click="goBackToHome" class="modal-btn cancel">返回首页</button>
+          <button @click="showResultModal = false" class="modal-btn confirm">查看试卷详情</button>
+        </div>
       </div>
-    </transition>
+    </div>
+  </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+
+const router = useRouter();
 
 // --- 1. 状态数据 ---
 const examAppRef = ref(null);
 const isFullScreen = ref(false);
 const isSubmitted = ref(false);
+const showResultModal = ref(false); // 新增：控制结果弹窗
 const aiResultHtml = ref('');
 const switchCount = ref(0);
 
@@ -224,11 +266,113 @@ const handleDragStart = (e) => {
 };
 
 // --- 3. 题目数据 ---
+
+const renderLatex = (latex) => {
+  if (!latex) return '';
+  
+  try {
+    const result = [];
+    let lastIndex = 0;
+    let match;
+    
+    const regex = /\$([^$]+)\$/g;
+    
+    while ((match = regex.exec(latex)) !== null) {
+      const [fullMatch, formula] = match;
+      const before = latex.slice(lastIndex, match.index);
+      
+      if (before) {
+        result.push(before);
+      }
+      
+      const rendered = katex.renderToString(formula, {
+        throwOnError: false,
+        displayMode: false,
+        output: 'html',
+      });
+      
+      result.push(rendered);
+      lastIndex = regex.lastIndex;
+    }
+    
+    const after = latex.slice(lastIndex);
+    if (after) {
+      result.push(after);
+    }
+    
+    return result.join('');
+  } catch (e) {
+    console.error('LaTeX 渲染失败:', e);
+    return latex;
+  }
+};
+
 const selectionQuestions = ref([
-  { id: 1, title: '1. 设函数 $f(x) = \\lim_{n \\to \\infty} \\frac{x^{2n-1} + ax^2 + bx}{x^{2n} + 1}$ 在 $(-\\infty, +\\infty)$ 内连续，则（ ）', options: { A: '$a=1, b=1$', B: '$a=1, b=-1$', C: '$a=-1, b=1$', D: '$a=-1, b=-1$' } },
-  ...Array.from({ length: 9 }, (_, i) => ({ id: i + 2, title: `第 ${i + 2} 题：[选择题内容加载中...]` }))
+  {
+    id: 1,
+    title: '1. 设函数 $f(x) = \\lim_{n \\to \\infty} \\frac{x^{2n-1} + ax^2 + bx}{x^{2n} + 1}$ 在 $(-\\infty, +\\infty)$ 内连续，则（ ）',
+    options: {
+      A: '$a=1, b=1$',
+      B: '$a=1, b=-1$',
+      C: '$a=-1, b=1$',
+      D: '$a=-1, b=-1$'
+    }
+  },
+  {
+    id: 2,
+    title: '2. 设函数 $f(x) = \\int_0^x e^{-t^2} dt$，则 $f\'(0) =$（ ）',
+    options: {
+      A: '$0$',
+      B: '$1$',
+      C: '$e$',
+      D: '$e^{-1}$'
+    }
+  },
+  {
+    id: 3,
+    title: '3. 设 $\\alpha$ 为常数，则级数 $\\sum_{n=1}^{\\infty} \\frac{(-1)^n}{n^\\alpha}$ 收敛的充分必要条件是（ ）',
+    options: {
+      A: '$\\alpha \\leq 0$',
+      B: '$0 < \\alpha \\leq 1$',
+      C: '$\\alpha > 1$',
+      D: '$\\alpha > 0$'
+    }
+  },
+  {
+    id: 4,
+    title: '4. 设 $A$ 为 $3$ 阶实对称矩阵，且 $A^2 = A$，若 $A$ 的秩为 $2$，则 $A$ 的特征值为（ ）',
+    options: {
+      A: '$1, 1, 0$',
+      B: '$1, 1, 1$',
+      C: '$1, 0, 0$',
+      D: '$0, 0, 0$'
+    }
+  },
+  {
+    id: 5,
+    title: '5. 设随机变量 $X$ 与 $Y$ 相互独立，且 $X \\sim N(0, 1)$，$Y \\sim N(0, 1)$，则 $E(XY) =$（ ）',
+    options: {
+      A: '$0$',
+      B: '$1$',
+      C: '$-1$',
+      D: '$2$'
+    }
+  },
+  ...Array.from({ length: 5 }, (_, i) => ({
+    id: i + 6,
+    title: `${i + 6}. 设函数 $f(x) = \\frac{1}{1+x^2}$，则 $f^{(n)}(0) =$（ ）`,
+    options: {
+      A: '$0$',
+      B: '$1$',
+      C: '$(-1)^n n!$',
+      D: '$(-1)^{\\lfloor n/2 \\rfloor} n!$'
+    }
+  }))
 ]);
-const subjectiveQuestions = ref(Array.from({ length: 12 }, (_, i) => ({ id: i + 11, title: `${i + 11}. 考研数学解答/填空题示例题目内容...` })));
+const subjectiveQuestions = ref(Array.from({ length: 12 }, (_, i) => ({
+  id: i + 11,
+  title: `${i + 11}. 计算积分 $I = \\int_0^{\\infty} \\frac{\\sin x}{x} dx$。`
+})));
 
 // --- 4. 逻辑：倒计时与持久化 ---
 
@@ -324,7 +468,6 @@ const undoLast = () => { strokes.value.pop(); redrawCanvas(); };
 const clearCanvas = () => { if (confirm('确定清空草稿吗？')) { strokes.value = []; redrawCanvas(); } };
 
 // --- 6. 交互逻辑 ---
-
 const markDone = (id) => {
   if (answers[id] && String(answers[id]).trim() !== '') {
     doneSet.add(Number(id));
@@ -347,14 +490,46 @@ const toggleFullScreen = () => {
   }
 };
 
+// 提交试卷逻辑
+const showConfirmModal = ref(false); // 控制弹窗显示
+// 点击导航栏“提交试卷”按钮触发
 const handleSubmit = (isAuto = false) => {
-  if (!isAuto && !confirm("确定提交试卷吗？")) return;
+  if (isAuto === true) {
+    // 如果是倒计时结束自动提交，不弹窗，直接执行
+    confirmSubmit();
+  } else {
+    // 手动点击，打开自定义弹窗
+    showConfirmModal.value = true;
+  }
+};
 
-  isSubmitted.value = true;
-  // 清理缓存
+// 弹窗中点击“确认交卷”触发
+const confirmSubmit = () => {
+  showConfirmModal.value = false; // 关闭确认弹窗
+  isSubmitted.value = true;       // 标记为已提交状态
+
+  // 模拟 AI 报告生成（确保 aiResultHtml 有内容）
+  aiResultHtml.value = `
+    <div class="report-card-content">
+      <div class="score-box">
+        <span class="score-label">预估得分</span>
+        <span class="score-value">115</span>
+        <span class="score-total">/ 150</span>
+      </div>
+      <div class="analysis-box">
+        <h4>💡 AI 简评</h4>
+        <p>你的计算准确度较高，但在逻辑证明题的严谨性上还有提升空间。建议加强对中值定理应用场景的复习。</p>
+      </div>
+    </div>
+  `;
+
+  // 清除本地缓存
   localStorage.removeItem('exam_end_time');
   localStorage.removeItem('exam_answers');
   localStorage.removeItem('exam_draft_strokes');
+
+  // 显示结果弹窗
+  showResultModal.value = true;
 };
 
 const handleVisibilityChange = () => {
@@ -362,7 +537,6 @@ const handleVisibilityChange = () => {
 };
 
 // --- 7. 生命周期与监听 ---
-
 // 自动保存答案和草稿
 watch(answers, (newVal) => localStorage.setItem('exam_answers', JSON.stringify(newVal)), { deep: true });
 watch(strokes, (newVal) => localStorage.setItem('exam_draft_strokes', JSON.stringify(newVal)), { deep: true });
@@ -392,7 +566,11 @@ onUnmounted(() => {
 });
 
 const doneCount = computed(() => doneSet.size);
-const askAIHelp = () => alert("AI 提示：重点检查解答题的第二步逻辑。");
+const askAIHelp = () => alert("注意检查前十道选择题！");
+
+const goBackToHome = () => {
+  router.push('/user/subject');
+};
 </script>
 
 
@@ -415,7 +593,8 @@ const askAIHelp = () => alert("AI 提示：重点检查解答题的第二步逻�
   padding: 0 24px;
   height: 64px;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);  /* 毛玻璃效果 */
+  backdrop-filter: blur(10px);
+  /* 毛玻璃效果 */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border-bottom: 1px solid #eaeaea;
   position: fixed;
@@ -436,7 +615,7 @@ const askAIHelp = () => alert("AI 提示：重点检查解答题的第二步逻�
   flex-direction: column;
   line-height: 1.2;
 }
-               
+
 .logo-group-eng {
   font-size: 18px;
   font-weight: 800;
@@ -653,6 +832,43 @@ button {
   padding: 10px;
 }
 
+.confidential-mark {
+  font-weight: bold;
+  font-size: 16px;
+  color: #c8102e;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.confidential-mark .star {
+  color: #c8102e;
+  font-size: 18px;
+}
+
+/* 试卷头部样式 */
+.paper-header {
+  text-align: center;
+  /* padding: 30px 0; */
+}
+
+.main-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #1a1a1a;
+  margin: 20px 0;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.title-divider {
+  width: 300px;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #1a1a1a, transparent);
+  margin: 20px auto;
+}
+
 /* 侧边栏容器 */
 .sidebar-container {
   position: fixed;
@@ -665,7 +881,8 @@ button {
 /* 切换侧边栏的拉手 */
 .toggle-handler {
   position: absolute;
-  left: -30px; /* 露出一截在外面 */
+  left: -30px;
+  /* 露出一截在外面 */
   top: 50%;
   transform: translateY(-50%);
   width: 30px;
@@ -678,7 +895,7 @@ button {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-text {
@@ -698,7 +915,8 @@ button {
 
 /* 拖动时的临时状态 */
 .is-dragging {
-  transition: none !important; /* 拖动时关闭动画，防止卡顿 */
+  transition: none !important;
+  /* 拖动时关闭动画，防止卡顿 */
   opacity: 0.9;
 }
 
@@ -774,7 +992,7 @@ button {
   gap: 40px;
   font-size: 16px;
   margin-bottom: 30px;
-  color:#636363;
+  color: #636363;
   font-style: italic;
 }
 
@@ -789,7 +1007,7 @@ button {
 }
 
 /* 考试注意事项 */
-.notice-title{
+.notice-title {
   font-weight: bold;
   margin-left: 0;
   padding-left: 0;
@@ -874,12 +1092,42 @@ button {
   color: inherit;
 }
 
+/* 试卷页脚 */
+.paper-footer {
+  margin-top: auto;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+}
+
+/* KaTeX 公式样式 */
+:deep(.katex) {
+  font-size: 1.05em;
+}
+
+:deep(.katex-display) {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 题目标题中的 KaTeX 公式 */
+.question-title :deep(.katex) {
+  font-size: 1.1em;
+}
+
+/* 选项中的 KaTeX 公式 */
+.option-text :deep(.katex) {
+  font-size: 1.05em;
+}
+
 /* 填空题名称栏 */
-.completion-banner{
+.completion-banner {
   background: #eef3f8;
   padding: 8px;
   margin-top: 20px;
-  font-weight: bold;  
+  font-weight: bold;
 }
 
 .answer-area {
@@ -945,6 +1193,172 @@ button {
   color: #ef4444;
 }
 
+/* 弹窗遮罩层 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  /* 背景模糊，更有质感 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  /* 确保在最上层 */
+}
+
+/* 弹窗主体 */
+.modal-content {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  text-align: center;
+  width: 400px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.modal-title {
+  font-size: 22px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.modal-tips {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.highlight {
+  color: #e74c3c;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+/* 按钮组 */
+.modal-btns {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.modal-btn {
+  padding: 12px 25px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.modal-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.modal-btn.cancel:hover {
+  background: #e0e0e0;
+}
+
+.modal-btn.confirm {
+  background: #007aff;
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+}
+
+/* 渐变过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 结果报告弹窗特别样式 */
+.modal-content.report-modal {
+  width: 600px;
+  max-width: 90vw;
+  text-align: left;
+  padding: 30px;
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.modal-icon.success {
+  color: #10b981;
+}
+
+/* 报告内部样式 (v-html 内容) */
+:deep(.report-card-content) {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+:deep(.score-box) {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fcd34d;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  color: #92400e;
+}
+
+:deep(.score-label) {
+  display: block;
+  font-size: 14px;
+  opacity: 0.8;
+  margin-bottom: 5px;
+}
+
+:deep(.score-value) {
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+:deep(.score-total) {
+  font-size: 16px;
+  opacity: 0.6;
+  margin-left: 5px;
+}
+
+:deep(.analysis-box) {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 20px;
+  border-radius: 12px;
+  color: #0369a1;
+}
+
+:deep(.analysis-box h4) {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+:deep(.analysis-box p) {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
 </style>
-
-
