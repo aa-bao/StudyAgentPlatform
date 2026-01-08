@@ -33,12 +33,12 @@
 ```
 用户端流程:
 登录 → 仪表盘 → 选择科目 → 选择刷题模式
-  → 逐题精练/专项突破/真题模考
+  → 逐题精练/专项突破/真题模考/套卷刷题
   → 提交答案 → 查看解析 → 加入错题本/收藏
   → 学习统计与进度追踪
 
 管理员流程:
-登录 → 管理后台 → 题目管理/科目管理/用户管理/错题监控
+登录 → 管理后台 → 题目管理/科目管理/用户管理/错题监控/试卷管理
   → 数据统计与系统维护
 ```
 
@@ -48,7 +48,8 @@
 |------|---------|-----------|---------|
 | 用户端 | Login.vue, Dashboard.vue, SubjectList.vue | UserController, RecordController | 登录注册、学习统计、刷题、错题本 |
 | 刷题模块 | SinglePractice.vue, TopicDrill.vue, MockExam.vue | QuestionController, RecordController | 逐题精练、专项突破、真题模考 |
-| 管理后台 | AdminHome.vue, UserManage.vue, QuestionManage.vue, BookManage.vue, SubjectManage.vue, MistakeMonitor.vue | AdminController, UserController, QuestionController, BookController, SubjectController | 题目/习题册/科目/用户管理、错题监控 |
+| 套卷刷题 | PaperExam.vue | ExamSessionController, PaperController | 试卷管理、考试会话、AI批改 |
+| | 管理后台 | AdminHome.vue, UserManage.vue, QuestionManage.vue, BookManage.vue, SubjectManage.vue, MistakeMonitor.vue, PaperManage.vue | AdminController, UserController, QuestionController, BookController, SubjectController | 题目/习题册/科目/用户管理、错题监控 |
 
 ---
 
@@ -92,6 +93,14 @@
 - **角色分离**: 区分 `admin` 管理员和 `student` 普通用户
 - **路由守卫**: 前端路由拦截未授权访问
 - **Spring Security**: 后端安全控制（待扩展 JWT 认证）
+
+### 2.7 AI 智能批改系统
+
+- **GLM-4.7 集成**: 智能批改主观题，按步骤给分
+- **结构化反馈**: 返回得分、优点、不足、详细反馈
+- **客观题自动判分**: 单选、多选题自动批改
+- **考试统计**: 自动生成考试总结，包括正确率、时长、AI 反馈
+- **指数退避重试**: 处理 API 超时，最大重试 3 次
 
 ---
 
@@ -241,7 +250,8 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
 │   ├── SecurityConfig.java    # Spring Security 配置
 │   ├── WebConfig.java         # MVC 配置
 │   ├── Knife4jConfig.java     # Swagger API 文档配置
-│   └── MybatisPlusConfig.java # MyBatis Plus 配置
+│   ├── MybatisPlusConfig.java # MyBatis Plus 配置
+│   └── RestTemplateConfig.java # RestTemplate 配置（用于 AI API 调用）
 │
 ├── controller/                # API 接口层
 │   ├── AdminController.java   # 管理员后台（错题监控、标签统计）
@@ -251,14 +261,21 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
 │   ├── QuestionController.java # 题目管理
 │   ├── RecordController.java  # 考试记录
 │   ├── SubjectController.java # 科目管理（树形、拖拽排序）
-│   └── UserController.java    # 用户认证与信息管理
+│   ├── UserController.java    # 用户认证与信息管理
+│   ├── PaperController.java   # 试卷管理
+│   ├── ExamSessionController.java # 套卷刷题管理
+│   └── ExamAnswerDetailController.java # 答题明细管理
 │
 ├── entity/                    # 数据库实体
 │   ├── dto/                   # 数据传输对象
 │   │   ├── SubjectDTO.java    # 科目树形结构 DTO
 │   │   ├── BookDTO.java       # 习题册 DTO（含科目关联）
 │   │   ├── UserStudyStatsDTO.java # 用户学习统计 DTO
-│   │   └── MistakeHeatmapDTO.java # 错题热力统计 DTO
+│   │   ├── MistakeHeatmapDTO.java # 错题热力统计 DTO
+│   │   ├── QuestionDTO.java   # 题目 DTO（含关联关系）
+│   │   ├── LLMQuestionOutputDTO.java # LLM 题目识别输出 DTO
+│   │   ├── TagStatsDTO.java   # 标签统计 DTO
+│   │   └── ExamStartDTO.java  # 考试开始 DTO
 │   │
 │   ├── Book.java              # tb_book 表实体
 │   ├── ExamRecord.java        # tb_exam_record 表实体
@@ -268,7 +285,13 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
 │   ├── Question.java          # tb_question 表实体
 │   ├── Subject.java           # tb_subject 表实体
 │   ├── User.java              # tb_user 表实体
-│   └── MistakeRecord.java     # tb_mistake_record 表实体
+│   ├── MistakeRecord.java     # tb_mistake_record 表实体
+│   ├── Collection.java        # tb_collection 表实体
+│   ├── UserProgress.java      # tb_user_progress 表实体
+│   ├── Paper.java             # tb_paper 试卷表实体
+│   ├── MapPaperQuestion.java  # map_paper_question 试卷-题目映射表实体
+│   ├── ExamSession.java       # tb_exam_session 考试会话表实体
+│   └── ExamAnswerDetail.java  # tb_exam_answer_detail 答题明细表实体
 │
 ├── handler/                   # 处理器
 │   ├── GlobalExceptionHandler.java # 全局异常处理
@@ -285,7 +308,11 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
 │   ├── SubjectMapper.java
 │   ├── UserMapper.java
 │   ├── UserProgressMapper.java
-│   └── MistakeRecordMapper.java
+│   ├── MistakeRecordMapper.java
+│   ├── PaperMapper.java
+│   ├── MapPaperQuestionMapper.java
+│   ├── ExamSessionMapper.java
+│   └── ExamAnswerDetailMapper.java
 │
 └── service/                   # 业务逻辑层
     ├── BookService.java
@@ -299,6 +326,11 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
     ├── UserService.java
     ├── UserProgressService.java
     ├── MistakeRecordService.java
+    ├── PaperService.java
+    ├── MapPaperQuestionService.java
+    ├── ExamSessionService.java
+    ├── ExamAnswerDetailService.java
+    └── GLMService.java        # GLM-4.7 AI 批改服务
     │
     └── impl/                  # 服务实现类
         ├── BookServiceImpl.java
@@ -311,10 +343,15 @@ KaoYanPlatform/src/main/java/org/example/kaoyanplatform/
         ├── SubjectServiceImpl.java
         ├── UserServiceImpl.java
         ├── UserProgressServiceImpl.java
-        └── MistakeRecordServiceImpl.java
+        ├── MistakeRecordServiceImpl.java
+        ├── PaperServiceImpl.java
+        ├── MapPaperQuestionServiceImpl.java
+        ├── ExamSessionServiceImpl.java
+        ├── ExamAnswerDetailServiceImpl.java
+        └── GLMServiceImpl.java
 ```
 
-### 3.2 前端结构
+### 5.2 前端结构
 
 ```
 kaoyan-frontend/src/
@@ -325,12 +362,21 @@ kaoyan-frontend/src/
 ├── assets/                    # 静态资源
 │   └── icons/                 # SVG 图标库
 │
+├── components/                # 公共组件
+│   └── exam/                  # 考试相关组件
+│       ├── AnswerSheet.vue    # 答题卡组件
+│       ├── ExamHeader.vue     # 考试头部组件
+│       ├── QuestionItem.vue   # 题目展示组件
+│       ├── ScoreReport.vue    # 成绩报告组件
+│       └── ScratchPad.vue     # 草稿纸组件（Canvas）
+│
 ├── router/                    # 路由配置
 │   └── index.js               # 路由定义与导航守卫
 │
 ├── stores/                    # Pinia 状态管理
 │   ├── user.js                # 用户会话状态
-│   └── counter.js
+│   ├── counter.js             # 计数器状态
+│   └── exam.js                # 考试会话状态
 │
 ├── utils/                     # 工具函数
 │   └── request.js             # Axios 实例（带拦截器）
@@ -348,14 +394,17 @@ kaoyan-frontend/src/
 │   ├── quiz/                  # 刷题模式
 │   │   ├── SinglePractice.vue # 逐题精练
 │   │   ├── TopicDrill.vue     # 专项突破
-│   │   └── MockExam.vue       # 真题模考
+│   │   ├── MockExam.vue       # 真题模考
+│   │   └── MockExamView.vue   # 真题模考视图
 │   │
 │   ├── layout/                # 布局容器
 │   │   ├── AdminLayout.vue    # 管理员侧边栏 + 顶栏
-│   │   └── UserLayout.vue     # 用户侧边栏（浅色主题）+ 顶栏
+│   │   ├── UserLayout.vue     # 用户侧边栏（浅色主题）+ 顶栏
+│   │   └── Layout.vue         # 通用布局
 │   │
 │   ├── Dashboard.vue          # 用户首页
 │   ├── Login.vue              # 登录页
+│   ├── Exercise.vue           # 通用刷题页面
 │   ├── CorrectionNotebook.vue # 错题本（瀑布流、分类导航）
 │   ├── SubjectList.vue        # 科目选择列表
 │   └── UserProfile.vue        # 个人资料
@@ -507,7 +556,66 @@ kaoyan-frontend/src/
 | correct_count | int | | 该考点下做对题目数 |
 | update_time | datetime | | 更新时间 |
 
-### 4.2 映射表（多对多关系）
+### 6.2 套卷刷题相关表
+
+#### 试卷主表 (`tb_paper`)
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | varchar(36) | PK, UUID | 主键 |
+| title | varchar(255) | NOT NULL | 试卷标题 |
+| exam_spec_id | varchar(36) | | 考试规格 ID |
+| total_score | int | DEFAULT 150 | 总分 |
+| time_limit | int | DEFAULT 180 | 时间限制（分钟） |
+| paper_type | tinyint | | 试卷类型：0-真题, 1-模拟 |
+| structure_json | json | | 试卷结构：`[{"name":"一、选择题","start":1,"end":10}]` |
+| create_time | datetime | | 创建时间 |
+
+#### 试卷-题目关联表 (`map_paper_question`)
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | varchar(36) | PK, UUID | 主键 |
+| paper_id | varchar(36) | FK | 试卷 ID |
+| question_id | varchar(36) | FK | 题目 ID |
+| sort_order | int | | 题目顺序 |
+| score_value | decimal(5,2) | | 题目分值 |
+| parent_section_name | varchar(50) | | 所属大题名称 |
+
+**索引**: `uk_paper_question` (paper_id, question_id) 唯一索引
+
+#### 考试会话表 (`tb_exam_session`)
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | varchar(36) | PK, UUID | 主键 |
+| user_id | varchar(36) | FK, NOT NULL | 用户 ID |
+| paper_id | varchar(36) | FK, NOT NULL | 试卷 ID |
+| status | tinyint | DEFAULT 0 | 状态：0-进行中, 1-已完成 |
+| start_time | datetime | | 开始时间 |
+| submit_time | datetime | | 提交时间 |
+| total_score | decimal(5,2) | | 总分 |
+| switch_count | int | DEFAULT 0 | 切换题目次数 |
+| ai_summary | text | | AI 总结 |
+| snapshot_answers | json | | 答题快照 JSON |
+| create_time | datetime | | 创建时间 |
+
+#### 答题明细表 (`tb_exam_answer_detail`)
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | varchar(36) | PK, UUID | 主键 |
+| session_id | varchar(36) | FK | 考试会话 ID |
+| question_id | varchar(36) | FK | 题目 ID |
+| user_answer | text | | 用户答案 |
+| is_correct | tinyint | | 是否正确：0-错, 1-对, 2-待定（主观题） |
+| score_earned | decimal(5,2) | | 得分 |
+| duration_seconds | int | | 答题时长（秒） |
+| ai_feedback | text | | AI 反馈 |
+| knowledge_point_id | varchar(36) | | 知识点 ID |
+| create_time | datetime | | 创建时间 |
+
+### 6.3 映射表（多对多关系）
 
 #### 题目-书本关联表 (`map_question_book`)
 
@@ -539,7 +647,7 @@ kaoyan-frontend/src/
 
 **索引**: `uk_book_subject` (book_id, subject_id) 唯一索引, `idx_book_id`, `idx_subject_id`
 
-### 4.3 映射表关系链
+### 6.4 映射表关系链
 
 ```
 题目 → map_question_book → 习题册
@@ -547,7 +655,7 @@ kaoyan-frontend/src/
 习题册 → map_subject_book → 科目/知识点
 ```
 
-### 4.4 查询示例
+### 6.5 查询示例
 
 ```sql
 -- 查询某本书的所有题目
@@ -663,7 +771,94 @@ WHERE q.id = 1000;
 前端通过 `filterSubjectTreeForCascader()` 函数实现动态过滤，例如：
 - 选择"数学二"时，只显示 scope 包含 "5" 的科目（高数、概率论，**无线代**）
 
-### 5.4 用户管理与学习监控模块 (User Management)
+### 7.6 套卷刷题模块 (Paper Exam)
+
+#### 功能特性
+
+- ✅ **试卷管理**: 创建、编辑、删除试卷，支持设置试卷结构和大题
+- ✅ **题目关联**: 灵活的试卷-题目关联，支持设置分值和顺序
+- ✅ **考试会话**: 完整的考试生命周期管理（开始、答题、提交）
+- ✅ **自动存盘**: 实时保存答题进度，防止数据丢失
+- ✅ **客观题自动判分**: 单选、多选题自动批改
+- ✅ **AI 智能批改**: 主观题使用 GLM-4.7 进行智能批改
+- ✅ **结构化反馈**: 返回得分、优点、不足、详细反馈
+- ✅ **考试总结**: 自动生成详细的 AI 总结报告
+
+#### 核心 API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/paper/add` | POST | 新增试卷 |
+| `/paper/update` | POST | 更新试卷 |
+| `/paper/delete/{id}` | DELETE | 删除试卷 |
+| `/paper/page` | GET | 分页查询试卷 |
+| `/paper/{id}` | GET | 获取试卷详情 |
+| `/paper/{paperId}/questions` | GET | 获取试卷题目列表 |
+| `/paper/{paperId}/add-question` | POST | 添加题目到试卷 |
+| `/exam-session/start` | POST | 开始考试 |
+| `/exam-session/snapshot` | POST | 保存答题快照 |
+| `/exam-session/switch` | POST | 记录题目切换 |
+| `/exam-session/submit` | POST | 提交考试（触发AI批改） |
+| `/exam-session/{sessionId}` | GET | 获取考试会话详情 |
+| `/exam-session/{sessionId}/details` | GET | 获取答题明细 |
+| `/exam-answer-detail/session/{sessionId}` | GET | 查询答题明细 |
+| `/exam-answer-detail/session/{sessionId}/correct-rate` | GET | 获取正确率统计 |
+
+#### 考试流程
+
+```
+1. 管理员创建试卷
+   - 设置试卷基本信息（标题、总分、时限、类型）
+   - 配置试卷结构（大题名称、题目范围、分值）
+   - 关联题目（支持批量添加）
+
+2. 用户开始考试
+   - 初始化考试会话（记录开始时间）
+   - 加载试卷内容和题目列表
+   - 返回考试配置信息
+
+3. 用户答题
+   - 浏览题目（支持跳转）
+   - 填写答案
+   - 自动存盘（定时保存答题快照）
+   - 记录切换次数
+
+4. 提交考试
+   - 客观题自动判分（单选、多选）
+   - 主观题 AI 批改（调用 GLM-4.7）
+   - 生成答题明细记录
+   - 计算总分
+   - 生成 AI 总结报告
+
+5. 查看结果
+   - 查看总成绩
+   - 查看每题得分和反馈
+   - 查看 AI 总结
+   - 查看答题历史
+```
+
+#### AI 批改流程
+
+```
+1. 提取主观题列表（type = 3 或 4）
+2. 构建批改 Prompt
+   - 题目内容
+   - 学生解答
+   - 标准答案
+   - 满分分值
+   - 批改要求（按步骤给分）
+3. 调用 GLM-4.7 API
+   - 指数退避重试（最大 3 次）
+   - 超时处理
+4. 解析返回结果（JSON 格式）
+   - score: 得分
+   - feedback: 详细反馈
+   - strengths: 优点列表
+   - weaknesses: 不足列表
+5. 保存批改结果
+```
+
+### 7.4 用户管理与学习监控模块 (User Management)
 
 #### 功能特性
 
@@ -732,6 +927,9 @@ WHERE q.id = 1000;
 6. **答题记录** - 提交答案、统计查询
 7. **科目管理** - 科目树、层级管理
 8. **用户管理** - 登录注册、资料管理
+9. **试卷管理** - 试卷 CRUD、题目关联
+10. **套卷刷题管理** - 考试会话、AI批改
+11. **答题明细管理** - 答题详情、统计查询
 
 ### 7.2 统一响应格式
 
@@ -1361,8 +1559,8 @@ import icon from '@/assets/icons/icon.svg?url'
 3. **公告系统**: 未实现，需要新建 `tb_notice` 表
 4. **资源管理**: 未实现，需要基于 `tb_resource` 表开发
 5. **全局标签管理**: 收藏标签未规范化管理
-6. **真题模考**: 套卷模式未完善
-7. **科目层级限制**: 当前固定为 4 层级，未来如需扩展需修改 `SubjectLevelConstants.java`
+6. **科目层级限制**: 当前固定为 4 层级，未来如需扩展需修改 `SubjectLevelConstants.java`
+7. **AI 批改稳定性**: GLM API 调用可能受到网络影响，需要进一步优化重试机制和降级策略
 
 ### 11.2 性能优化建议
 
@@ -1384,15 +1582,22 @@ import icon from '@/assets/icons/icon.svg?url'
    - 组件按需引入
    - 图片懒加载
 
-### 11.3 扩展方向
+### 12.3 扩展方向
 
-1. **真题模考**: 实现套卷模式，倒计时、自动提交、成绩分析
-2. **智能推荐**: 基于错题记录推荐薄弱知识点题目
-3. **学习计划**: 自定义学习计划，每日打卡提醒
-4. **社区讨论**: 题目评论区，支持提问和解答
-5. **移动端适配**: 使用响应式布局或开发小程序版本
-6. **数据导入导出**: Excel 批量导入题目、学习报告导出
-7. **消息通知**: WebSocket 实时推送学习提醒
+1. **智能推荐**: 基于错题记录推荐薄弱知识点题目
+2. **学习计划**: 自定义学习计划，每日打卡提醒
+3. **社区讨论**: 题目评论区，支持提问和解答
+4. **移动端适配**: 使用响应式布局或开发小程序版本
+5. **数据导入导出**: Excel 批量导入题目、学习报告导出
+6. **消息通知**: WebSocket 实时推送学习提醒
+7. **AI 能力增强**:
+   - 支持更多 AI 模型（如 GPT-4、文心一言）
+   - 增强主观题批改准确性
+   - 添加错题 AI 解析和知识点推荐
+8. **考试功能完善**:
+   - 添加考试排名和竞赛模式
+   - 支持试卷共享和模板复用
+   - 添加考试历史对比分析
 
 ---
 
@@ -1440,6 +1645,57 @@ A: 两个页面的用途不同：
 - **SubjectManage**: 使用 `getManageTree()` 方法，显示完整的层级结构用于管理
 
 #### Q7: 如何添加新的管理页面？
+
+A:
+1. 在 `views/admin/` 下创建 Vue 组件
+2. 在 `router/index.js` 中添加路由
+3. 在 `AdminLayout.vue` 中添加菜单项
+
+#### Q8: 套卷刷题的 AI 批改如何工作？
+
+A: 套卷刷题的 AI 批改流程如下：
+1. 提取所有主观题（解答题、简答题）
+2. 为每道题构建批改 Prompt，包含题目内容、学生解答、标准答案、满分分值
+3. 调用 GLM-4.7 API 进行批改，设置 temperature=0.3 确保稳定性
+4. 使用指数退避重试机制处理 API 超时（最大重试 3 次）
+5. 解析返回的 JSON 格式评分结果（score、feedback、strengths、weaknesses）
+6. 保存批改结果到 `tb_exam_answer_detail` 表
+7. 汇总所有题目得分，生成 AI 总结报告
+
+#### Q9: 如何配置 GLM-4.7 API？
+
+A: 在 `application.yml` 中配置 API Key：
+```yaml
+zhipu:
+  api:
+    key: your-api-key-here
+```
+系统会自动读取该配置用于 AI 批改功能。
+
+#### Q10: 考试快照是如何保存的？
+
+A:
+1. 前端定时调用 `/exam-session/snapshot` 接口
+2. 传入答题进度 JSON 数据（包含所有题目的答案）
+3. 后端将 JSON 字符串保存到 `tb_exam_session` 表的 `snapshot_answers` 字段
+4. 提交考试时，系统会从快照中提取答案进行批改
+5. 快照存储格式：`{"questionId1": "answer1", "questionId2": "answer2", ...}`
+
+#### Q11: 套卷刷题支持哪些题目类型？
+
+A: 目前支持以下题目类型的批改：
+- **单选题**: 自动判分，完全匹配得满分
+- **多选题**: 自动判分，选项完全一致得满分
+- **主观题**（填空、简答、解答）: 使用 GLM-4.7 AI 批改，按步骤给分
+
+#### Q12: 如何创建新的试卷？
+
+A:
+1. 管理员在后台创建试卷基本信息（标题、总分、时限、类型）
+2. 配置试卷结构（大题名称、题目范围、分值）
+3. 通过 `/paper/{paperId}/add-question` 接口逐个添加题目
+4. 设置每道题的顺序、分值和所属大题
+5. 保存后试卷即可供用户开始考试
 
 A:
 1. 在 `views/admin/` 下创建 Vue 组件
@@ -1500,9 +1756,16 @@ A:
 
 ---
 
-**文档版本**: v1.3
-**最后更新**: 2026-01-08
+**文档版本**: v1.5
+**最后更新**: 2026-01-09
 **维护者**: AI Assistant
+**更新内容**:
+- 新增套卷刷题功能模块
+- 集成 GLM-4.7 AI 批改系统
+- 添加试卷管理和考试会话相关表
+- 完善套卷刷题相关 API 接口文档
+- 更新项目功能模块总览和亮点
+- 修正项目结构部分，添加所有新增文件和组件
 
 ### B. 科目层级常量定义
 
@@ -1562,3 +1825,120 @@ public final class SubjectLevelConstants {
 | 数学二 | 5 | 1 | 属于"数学"虚拟分组 |
 | 数学三 | 6 | 1 | 属于"数学"虚拟分组 |
 | 408 | 7 | 1 | 计算机考研专业课 |
+
+### C. 套卷刷题相关常量定义
+
+参考实际代码，项目中套卷刷题相关的常量定义如下：
+
+#### 试卷类型常量
+
+```java
+public final class PaperTypeConstants {
+    public static final Integer TYPE_REAL_EXAM = 0;    // 真题
+    public static final Integer TYPE_MOCK_EXAM = 1;    // 模拟题
+
+    public static String getPaperTypeName(Integer type) {
+        if (type == null) return "未知";
+        switch (type) {
+            case 0: return "真题";
+            case 1: return "模拟题";
+            default: return "未知";
+        }
+    }
+}
+```
+
+#### 考试会话状态常量
+
+```java
+public final class ExamSessionStatusConstants {
+    public static final Integer STATUS_IN_PROGRESS = 0;  // 进行中
+    public static final Integer STATUS_COMPLETED = 1;    // 已完成
+
+    public static String getStatusName(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "进行中";
+            case 1: return "已完成";
+            default: return "未知";
+        }
+    }
+}
+```
+
+#### 题目类型判分常量
+
+```java
+public final class QuestionTypeConstants {
+    public static final Integer TYPE_SINGLE_CHOICE = 1;  // 单选题
+    public static final Integer TYPE_MULTIPLE_CHOICE = 2; // 多选题
+    public static final Integer TYPE_FILL_BLANK = 3;     // 填空题
+    public static final Integer TYPE_SHORT_ANSWER = 4;   // 简答题/解答题
+
+    public static boolean isObjectiveQuestion(Integer type) {
+        return type != null && (type == TYPE_SINGLE_CHOICE || type == TYPE_MULTIPLE_CHOICE);
+    }
+
+    public static boolean isSubjectiveQuestion(Integer type) {
+        return type != null && (type == TYPE_FILL_BLANK || type == TYPE_SHORT_ANSWER);
+    }
+}
+```
+
+#### 答题正误状态常量
+
+```java
+public final class AnswerStatusConstants {
+    public static final Integer STATUS_INCORRECT = 0;  // 错误
+    public static final Integer STATUS_CORRECT = 1;    // 正确
+    public static final Integer STATUS_PENDING = 2;   // 待定（主观题）
+
+    public static String getStatusName(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "错误";
+            case 1: return "正确";
+            case 2: return "待定";
+            default: return "未知";
+        }
+    }
+}
+```
+
+#### AI 批改配置常量
+
+```java
+public final class GLMGradingConstants {
+    // GLM-4.7 API 配置
+    public static final String GLM_MODEL = "glm-4";
+    public static final Double GLM_TEMPERATURE = 0.3;
+    public static final Integer MAX_RETRY_COUNT = 3;
+    public static final Long BASE_RETRY_DELAY = 1000L; // 1秒
+
+    // 批改 Prompt 模板
+    public static final String GRADING_PROMPT_TEMPLATE =
+            "你是一位资深的考研数学阅卷组长。请按照以下标准对学生的解答进行评分：\n\n" +
+            "【题目内容】\n%s\n\n" +
+            "【标准答案】\n%s\n\n" +
+            "【学生解答】\n%s\n\n" +
+            "【评分要求】\n" +
+            "1. 本题满分：%.1f分\n" +
+            "2. 请按步骤给分，关注解题思路的正确性和完整性\n" +
+            "3. 即使最终答案错误，也要考虑过程分\n" +
+            "4. 对于计算错误、逻辑错误要明确指出\n" +
+            "5. 给出详细的建设性反馈\n\n" +
+            "【输出格式】\n" +
+            "请以JSON格式返回评分结果，格式如下：\n" +
+            "{\n" +
+            "  \"score\": 得分(数字),\n" +
+            "  \"feedback\": \"详细的评分反馈\",\n" +
+            "  \"strengths\": [\"优点1\", \"优点2\"],\n" +
+            "  \"weaknesses\": [\"不足点1\", \"不足点2\"]\n" +
+            "}\n\n" +
+            "请确保输出的是有效的JSON格式。";
+
+    // 试卷默认配置
+    public static final Integer DEFAULT_TOTAL_SCORE = 150;  // 默认总分
+    public static final Integer DEFAULT_TIME_LIMIT = 180;    // 默认时间（分钟）
+}
+```
