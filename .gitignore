@@ -14,6 +14,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 uploads/*
+!uploads/.gitkeep
 *.class
 *.log
 *.ctxt
@@ -36,7 +37,6 @@ uploads/*
 .project
 .settings/
 .factorypath
+.claude/
 
 # --- 临时文件忽略项 ---
-.claude/
-.vscode/
