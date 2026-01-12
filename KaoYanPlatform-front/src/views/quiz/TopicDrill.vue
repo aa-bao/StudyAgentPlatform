@@ -1,1031 +1,790 @@
 <template>
-    <div class="knowledge-practice-container">
-        <!-- 选择模式 -->
-        <div v-if="mode === 'selection'" class="selection-container">
-            <!-- 页面标题 -->
-            <div class="page-header">
-                <div class="header-left">
-                    <h1>
-                        <el-icon :size="32" class="header-icon">
-                            <Reading />
-                        </el-icon>
-                        专项突破
-                    </h1>
-                    <p>按知识点系统化刷题，精准突破薄弱环节</p>
-                </div>
+    <div class="topic-drill-container" :style="{ background: currentTheme?.lightBg || '#f8fafc' }">
+        <div class="header-glow" :style="{ background: currentTheme?.gradient }"></div>
+
+        <div class="content-wrapper">
+            <div class="navbar-container">
+                <nav class="subject-navbar">
+                    <div class="nav-slider" :style="navSliderStyle"></div>
+                    <div v-for="(subject, index) in displaySubjects" :key="subject.id"
+                        :ref="el => { if (el) navRefs[index] = el }"
+                        class="subject-pill"
+                        :class="{ active: activeSubject?.id === subject.id }"
+                        @click="handleSubjectChange(subject, index)">
+                        <span class="pill-label">{{ subject.name }}</span>
+                    </div>
+                </nav>
             </div>
 
-            <!-- 科目列表 -->
-            <div class="subjects-section" v-loading="loading">
-                <div v-for="(subject, index) in subjectList" :key="subject.id"
-                     class="subject-row"
-                     :style="{ 'animation-delay': index * 0.08 + 's' }"
-                     @click="selectRootSubject(subject)">
-
-                    <!-- 科目图标 -->
-                    <div class="subject-icon-box" :class="'bg-color-' + (index % 6)">
-                        <el-icon :size="36">
-                            <Notebook />
-                        </el-icon>
-                    </div>
-
-                    <!-- 科目信息 -->
-                    <div class="subject-info">
-                        <h3>{{ subject.name }}</h3>
-                        <p class="subject-desc">点击开始该科目知识点练习</p>
-                    </div>
-
-                    <!-- 统计数据 -->
-                    <div class="subject-metrics">
-                        <div class="metric-item">
-                            <span class="metric-value">{{ subject.questionCount }}</span>
-                            <span class="metric-label">题目数</span>
-                        </div>
-                        <div class="metric-divider"></div>
-                        <div class="metric-item">
-                            <span class="metric-value">{{ subject.finishedCount }}</span>
-                            <span class="metric-label">已完成</span>
-                        </div>
-                        <div class="metric-divider"></div>
-                        <div class="metric-item">
-                            <span class="metric-value accent">{{ Math.round((subject.finishedCount / subject.questionCount) * 100) }}%</span>
-                            <span class="metric-label">完成率</span>
+            <div class="main-layout">
+                <aside class="kb-sidebar" :style="{ borderColor: currentTheme?.borderColor }">
+                    <div class="sidebar-header">
+                        <h3>知识图谱</h3>
+                        <div class="tree-actions">
+                            <button class="text-btn" @click="expandAllNodes">全部展开</button>
+                            <button class="text-btn" @click="collapseAllNodes">全部收起</button>
                         </div>
                     </div>
-
-                    <!-- 进度条 -->
-                    <div class="progress-wrapper">
-                        <div class="progress-bar">
-                            <div class="progress-fill"
-                                 :style="{ width: Math.round((subject.finishedCount / subject.questionCount) * 100) + '%', background: getProgressGradient(index) }">
-                            </div>
-                        </div>
-                        <el-icon class="arrow-icon" :size="20">
-                            <ArrowRight />
-                        </el-icon>
+                    <div class="tree-viewport">
+                        <ModuleNode v-for="node in moduleTree" :key="node.id" :node="node" :depth="0"
+                            :selected-id="selectedNode?.id" :theme-color="currentTheme?.color"
+                            @node-selected="handleNodeClick" />
                     </div>
-                </div>
+                </aside>
 
-                <!-- 空状态 -->
-                <div v-if="subjectList.length === 0 && !loading" class="empty-state">
-                    <el-empty description="暂无科目数据" />
-                </div>
-            </div>
-        </div>
-
-        <!-- 练习模式 -->
-        <el-container v-else style="height: calc(100vh - 80px);">
-            <!-- 左侧：知识点树 -->
-            <el-aside class="tree-aside">
-                <div class="aside-header">
-                    <div class="header-top">
-                        <el-button link @click="goBack" class="back-btn">
-                            <el-icon>
-                                <ArrowLeft />
-                            </el-icon> 返回
-                        </el-button>
-                        <h3>{{ selectedRoot?.name }}</h3>
-                    </div>
-                    <div class="header-subtitle"><el-icon>
-                            <Files />
-                        </el-icon> 知识点目录</div>
-                </div>
-                <el-scrollbar>
-                    <el-tree :data="treeData" :props="defaultProps" @node-click="handleNodeClick" node-key="id"
-                        highlight-current :expand-on-click-node="false" default-expand-all :indent="16">
-                        <template #default="{ node, data }">
-                            <div class="custom-tree-node">
-                                <span class="node-label" :title="node.label">{{ node.label }}</span>
-                                <span class="node-stat" v-if="data.questionCount > 0">
-                                    <el-tag size="small" :type="data.finishedCount > 0 ? 'success' : 'info'"
-                                        effect="plain" round>
-                                        {{ data.finishedCount }}/{{ data.questionCount }}
-                                    </el-tag>
-                                </span>
-                            </div>
-                        </template>
-                    </el-tree>
-                </el-scrollbar>
-            </el-aside>
-
-            <!-- 右侧：题目列表 -->
-            <el-main class="questions-main" v-loading="questionsLoading">
-                <div v-if="!currentSubject" class="empty-state">
-                    <el-empty description="请在左侧选择一个知识点开始刷题" image-size="200">
-                        <template #extra>
-                            <p class="empty-tip">支持按考点、章节筛选题目，精准突破薄弱环节</p>
-                        </template>
-                    </el-empty>
-                </div>
-                <div v-else class="content-wrapper">
-                    <div class="subject-header">
-                        <div class="header-left">
-                            <h2>{{ currentSubject.name }}</h2>
-                            <el-tag effect="dark" type="primary" size="large">{{ questions.length }} 道题</el-tag>
-                        </div>
-                        <div class="header-right">
-                            <el-progress :percentage="calculateProgress()" :stroke-width="10" :width="150"
-                                type="line" />
-                            <span class="progress-text">本节进度</span>
-                        </div>
-                    </div>
-
-                    <div v-if="questions.length === 0" class="empty-questions">
-                        <el-empty description="该知识点下暂无题目" />
-                    </div>
-
-                    <div class="question-list">
-                        <div v-for="(q, index) in questions" :key="q.id" class="question-card" :id="'q-' + q.id">
-                            <div class="q-header-row">
-                                <div class="q-tag-group">
-                                    <span class="q-index">#{{ index + 1 }}</span>
-                                    <el-tag size="small" :type="getTypeColor(q.type)">{{ getTypeName(q.type) }}</el-tag>
-                                    <el-tag v-if="q.difficulty" size="small" type="warning" effect="plain">难度: {{
-                                        q.difficulty
-                                        }}</el-tag>
-                                </div>
-                                <div class="q-actions">
-                                    <!-- 占位符：未来可添加收藏等操作 -->
-                                </div>
-                            </div>
-
-                            <div class="q-content" v-html="renderLatex(q.content)"></div>
-
-                            <div class="q-options">
-                                <div v-for="(opt, oIndex) in parseOptions(q.options)" :key="oIndex" class="option-item"
-                                    :class="getOptionClass(q, opt)" @click="selectOption(q, opt)">
-                                    <span class="opt-prefix">{{ getOptionLetter(opt) }}</span>
-                                    <span class="opt-text" v-html="renderLatex(getOptionContent(opt))"></span>
-
-                                    <el-icon v-if="q.isSubmitted && getOptionLetter(opt) === q.answer"
-                                        class="status-icon correct"><Select /></el-icon>
-                                    <el-icon
-                                        v-if="q.isSubmitted && getOptionLetter(opt) === q.userSelected && q.userSelected !== q.answer"
-                                        class="status-icon wrong">
-                                        <CloseBold />
-                                    </el-icon>
-                                </div>
-                            </div>
-
-                            <div class="q-footer">
-                                <div class="footer-left">
-                                    <el-button type="primary" :disabled="q.isSubmitted || !q.userSelected"
-                                        @click="submitAnswer(q)" round>
-                                        提交答案
-                                    </el-button>
-                                    <el-button v-if="q.isSubmitted" @click="q.showAnalysis = !q.showAnalysis" plain
-                                        round>
-                                        {{ q.showAnalysis ? '收起解析' : '查看解析' }}
-                                    </el-button>
+                <main class="content-panel" :style="{ borderColor: currentTheme?.borderColor }">
+                    <transition name="fade-slide" mode="out-in">
+                        <div v-if="selectedNode" :key="selectedNode.id" class="detail-card">
+                            <header class="detail-header">
+                                <div class="title-section">
+                                    <span class="type-tag" :style="{ background: currentTheme?.color }">
+                                        {{ moduleTypeMap[selectedNode.type]?.label }}
+                                    </span>
+                                    <h1>{{ selectedNode.label }}</h1>
                                 </div>
 
-                                <div v-if="q.isSubmitted" class="result-box" :class="q.isCorrect ? 'correct' : 'wrong'">
-                                    <el-icon>
-                                        <component :is="q.isCorrect ? 'Select' : 'CloseBold'" />
-                                    </el-icon>
-                                    <span v-if="q.isCorrect"> 回答正确</span>
-                                    <span v-else> 回答错误，正确答案: <strong>{{ q.answer }}</strong></span>
-                                </div>
-                            </div>
-
-                            <el-collapse-transition>
-                                <div v-if="q.isSubmitted && (q.showAnalysis || !q.isCorrect)" class="analysis-wrapper">
-                                    <div class="analysis-box">
-                                        <div class="analysis-title"><el-icon>
-                                                <Reading />
-                                            </el-icon> 解析：</div>
-                                        <div class="analysis-content" v-html="renderLatex(q.analysis || '暂无解析')"></div>
+                                <div class="quick-stats">
+                                    <div class="stat-item">
+                                        <span class="label">掌握度</span>
+                                        <div class="mini-progress-bar">
+                                            <div class="fill"
+                                                :style="{ width: (selectedNode.mastery || 0) + '%', background: currentTheme?.gradient }">
+                                            </div>
+                                        </div>
+                                        <span class="value">{{ selectedNode.mastery || 0 }}%</span>
+                                    </div>
+                                    <div class="stat-item" v-if="selectedNode.examFrequency">
+                                        <span class="label">考察热度</span>
+                                        <span class="value">{{ selectedNode.examFrequency }}次 / 5年</span>
                                     </div>
                                 </div>
-                            </el-collapse-transition>
+                            </header>
+
+                            <section class="info-grid">
+                                <div class="info-block solution">
+                                    <h3><i class="icon">🧠</i> 解题通法</h3>
+                                    <div v-if="selectedNode.solutionPatterns?.length" class="pattern-steps">
+                                        <div v-for="(p, i) in selectedNode.solutionPatterns" :key="i" class="step-item">
+                                            <span class="step-num" :style="{ borderColor: currentTheme?.color, color: currentTheme?.color }">{{ i + 1 }}</span>
+                                            <p>{{ p }}</p>
+                                        </div>
+                                    </div>
+                                    <div v-else class="empty-mini">暂无录入解题模式</div>
+                                </div>
+
+                                <div class="info-block mistakes" v-if="selectedNode.commonMistakes?.length">
+                                    <h3><i class="icon">⚠️</i> 高频误区</h3>
+                                    <ul class="mistake-list">
+                                        <li v-for="m in selectedNode.commonMistakes" :key="m">{{ m }}</li>
+                                    </ul>
+                                </div>
+                            </section>
                         </div>
-                    </div>
-                </div>
-            </el-main>
-        </el-container>
+
+                        <div v-else class="empty-state">
+                            <div class="floating-icons">📐 🧪 🖋️</div>
+                            <h2>开始你的专项练习</h2>
+                            <p>从左侧图谱中选择一个知识模块查看详情</p>
+                        </div>
+                    </transition>
+                </main>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import request from '@/utils/request'
+import { ref, onMounted, defineComponent, h, computed, reactive, nextTick, watch } from 'vue'
+import { getExamSpecListApi, getTreeByExamSpecApi } from '@/api/subject'
 import { ElMessage } from 'element-plus'
-import { Files, Select, CloseBold, Reading, Notebook, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
-import { useRoute, useRouter } from 'vue-router'
 
-const route = useRoute()
-const router = useRouter()
+const navRefs = ref([])
+const navSliderStyle = reactive({
+    width: '0px',
+    left: '0px',
+    background: ''
+})
 
-const mode = ref('selection') // 'selection' | 'drill'
-const subjectList = ref([])
-const selectedRoot = ref(null)
+// 主科目配置（只显示4个主科目）
+const MAIN_SUBJECTS = ['政治', '英语', '数学', '408']
 
-const treeData = ref([])
-const defaultProps = {
-    children: 'children',
-    label: 'name'
+// 科目名称映射：将后端返回的细分科目映射到主科目
+const SUBJECT_NAME_MAP = {
+    '英语一': '英语',
+    '英语二': '英语',
+    '数学一': '数学',
+    '数学二': '数学',
+    '数学三': '数学'
 }
-const loading = ref(false)
-const questionsLoading = ref(false)
-const currentSubject = ref(null)
-const questions = ref([])
-const userInfo = JSON.parse(localStorage.getItem('user') || '{}')
 
-const loadSubjectList = async () => {
-    loading.value = true
-    try {
-        const res = await request.get('/subject/tree', {
-            params: { userId: userInfo.id }
-        })
-        subjectList.value = res.data
-    } catch (error) {
-        console.error(error)
-    } finally {
-        loading.value = false
+// 统一颜色配置（根据主科目设置颜色）
+const SUBJECT_COLORS = {
+    '政治': {
+        color: '#ef4444',
+        gradient: 'linear-gradient(135deg, #ef4444, #f87171)',
+        bgGradient: 'rgba(239, 68, 68, 0.15)',
+        lightBg: '#fef2f2',
+        borderColor: '#fecaca'
+    },
+    '408': {
+        color: '#3b82f6',
+        gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
+        bgGradient: 'rgba(59, 130, 246, 0.15)',
+        lightBg: '#eff6ff',
+        borderColor: '#bfdbfe'
+    },
+    '英语': {
+        color: '#8b5cf6',
+        gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+        bgGradient: 'rgba(139, 92, 246, 0.15)',
+        lightBg: '#f5f3ff',
+        borderColor: '#ddd6fe'
+    },
+    '数学': {
+        color: '#10b981',
+        gradient: 'linear-gradient(135deg, #10b981, #34d399)',
+        bgGradient: 'rgba(16, 185, 129, 0.15)',
+        lightBg: '#ecfdf5',
+        borderColor: '#a7f3d0'
     }
 }
 
-const selectRootSubject = (subject) => {
-    selectedRoot.value = subject
-    mode.value = 'drill'
-    loadTree(subject.id)
-}
+/**
+ * 局部组件：ModuleNode
+ * 负责递归显示知识树条目
+ */
+const ModuleNode = defineComponent({
+    name: 'ModuleNode',
+    props: ['node', 'depth', 'selectedId', 'themeColor'],
+    emits: ['node-selected'],
+    setup(props, { emit }) {
+        const isExpanded = ref(props.node.expanded ?? props.depth < 1)
 
-const goBack = () => {
-    // 如果是从科目列表页面跳转过来的（有 rootId），直接返回到 SubjectList
-    if (route.query.rootId) {
-        router.push({
-            path: '/user/subject',
-            query: {
-                backToLevel: 1,
-                subjectId: route.query.rootId
+        // 监听外部数据变化（点击“全部展开”时生效）
+        watch(() => props.node.expanded, (newVal) => {
+            if (newVal !== undefined) isExpanded.value = newVal
+        })
+        const toggle = (e) => {
+            e.stopPropagation()
+            isExpanded.value = !isExpanded.value
+            props.node.expanded = isExpanded.value
+            emit('node-selected', props.node)
+        }
+
+        return () => h('div', { class: ['node-wrapper', `depth-${props.depth}`] }, [
+            h('div', {
+                class: ['node-item', {
+                    'is-active': props.selectedId === props.node.id,
+                    'has-children': props.node.children?.length > 0
+                }],
+                style: props.selectedId === props.node.id ? {
+                    background: 'var(--node-active-bg, #eff6ff)',
+                    color: props.themeColor || '#2563eb'
+                } : {},
+                onClick: toggle
+            }, [
+                props.node.children?.length ? h('span', { class: ['arrow', isExpanded.value ? 'down' : 'right'] }, '▶') : h('span', { class: 'dot' }),
+                h('span', { class: 'label' }, props.node.label),
+                props.node.weight ? h('span', { class: 'weight' }, `${props.node.weight}%`) : null
+            ]),
+            (isExpanded.value && props.node.children) ? h('div', { class: 'children-container' },
+                props.node.children.map(child => h(ModuleNode, {
+                    node: child,
+                    depth: props.depth + 1,
+                    selectedId: props.selectedId,
+                    themeColor: props.themeColor,
+                    onNodeSelected: (n) => emit('node-selected', n)
+                }))
+            ) : null
+        ])
+    }
+})
+
+// --- 状态管理 ---
+const subjects = ref([]) // 后端返回的原始科目列表
+const activeSubject = ref(null) // 当前选中的科目（后端原始数据）
+const activeExamSpec = ref(null) // 当前选中的具体考试规格（如"数学一"）
+const moduleTree = ref([])
+const selectedNode = ref(null)
+
+// 计算属性：处理后的显示科目列表（只显示4个主科目）
+const displaySubjects = computed(() => {
+    const mainSubjectMap = {}
+
+    subjects.value.forEach(item => {
+        // 映射到主科目名称
+        const mainName = SUBJECT_NAME_MAP[item.name] || item.name
+
+        // 如果该主科目还不存在，初始化数组
+        if (!mainSubjectMap[mainName]) {
+            mainSubjectMap[mainName] = {
+                id: item.id, // 默认使用第一个的id
+                name: mainName, // 使用主科目名称作为显示名称
+                examSpecs: [] // 保存该主科目下的所有考试规格
+            }
+        }
+
+        // 将当前考试规格添加到数组中
+        mainSubjectMap[mainName].examSpecs.push(item)
+    })
+
+    // 按照 MAIN_SUBJECTS 的顺序返回
+    return MAIN_SUBJECTS
+        .filter(name => mainSubjectMap[name])
+        .map(name => {
+            const subject = mainSubjectMap[name]
+            return {
+                ...subject,
+                color: SUBJECT_COLORS[name]?.color,
+                gradient: SUBJECT_COLORS[name]?.gradient,
+                bgGradient: SUBJECT_COLORS[name]?.bgGradient,
+                lightBg: SUBJECT_COLORS[name]?.lightBg,
+                borderColor: SUBJECT_COLORS[name]?.borderColor
             }
         })
-    } else if (mode.value === 'drill') {
-        // 否则返回到科目选择页面
-        mode.value = 'selection'
-        selectedRoot.value = null
-        currentSubject.value = null
-        questions.value = []
-        treeData.value = []
+})
+
+// 计算当前科目的主题色
+const currentTheme = computed(() => {
+    if (!activeSubject.value) return SUBJECT_COLORS['政治']
+
+    // 获取主科目名称
+    const mainName = SUBJECT_NAME_MAP[activeSubject.value.name] || activeSubject.value.name
+    return SUBJECT_COLORS[mainName] || SUBJECT_COLORS['政治']
+})
+
+const moduleTypeMap = {
+    primary: { label: '核心模块', color: '#3b82f6' },
+    secondary: { label: '题型群组', color: '#2563eb' },
+    tertiary: { label: '知识考点', color: '#1d4ed8' },
+    quaternary: { label: '原子考点', color: '#1e40af' }
+}
+
+// --- 逻辑处理 ---
+// 获取用户选择的考试规格
+const getUserExamSpec = (mainSubject, allExamSpecs) => {
+    // 从localStorage获取用户信息（注意是'user'而不是'userInfo'）
+    const userStr = localStorage.getItem('user') || '{}'
+    const userInfo = JSON.parse(userStr)
+
+    console.log('getUserExamSpec - mainSubject:', mainSubject)
+    console.log('getUserExamSpec - userInfo:', userInfo)
+
+    const examSubjectsStr = userInfo.examSubjects || ''
+    const userSubjects = examSubjectsStr.split(',').map(s => s.trim()).filter(s => s)
+
+    console.log('getUserExamSpec - examSubjectsStr:', examSubjectsStr)
+    console.log('getUserExamSpec - userSubjects:', userSubjects)
+
+    // 根据主科目找到用户选择的具体科目
+    const userSpecificSubject = userSubjects.find(subject => {
+        return SUBJECT_NAME_MAP[subject] === mainSubject
+    })
+
+    console.log('getUserExamSpec - userSpecificSubject:', userSpecificSubject)
+
+    if (!userSpecificSubject) {
+        return null
+    }
+
+    // 从后端返回的所有考试规格中找到匹配的
+    const matchedSpec = allExamSpecs.find(spec => {
+        return spec.name === userSpecificSubject
+    })
+
+    console.log('getUserExamSpec - matchedSpec:', matchedSpec)
+
+    return matchedSpec
+}
+
+const fetchExamSpecs = async () => {
+    try {
+        const res = await getExamSpecListApi()
+        if (res.code === 200) {
+            subjects.value = res.data
+            console.log('subjects:', res.data)
+            // 加载完成后初始化第一个科目
+            await nextTick()
+            if (displaySubjects.value.length > 0) {
+                handleSubjectChange(displaySubjects.value[0], 0)
+            }
+        }
+    } catch (e) { ElMessage.error('加载科目失败') }
+}
+
+const handleSubjectChange = async (subject, index) => {
+    // 保存主科目信息
+    activeSubject.value = subject
+
+    let targetExamSpec = null
+
+    if (subject.name === '政治' || subject.name === '408') {
+        targetExamSpec = subject.examSpecs[0]
     } else {
-        // 否则返回到上一页
-        router.back()
-    }
-}
+        targetExamSpec = getUserExamSpec(subject.name, subjects.value)
 
-const loadTree = async (rootId) => {
-    loading.value = true
-    try {
-        const res = await request.get('/subject/tree', {
-            params: { userId: userInfo.id, rootId: rootId }
-        })
-        treeData.value = res.data
-    } catch (error) {
-        console.error(error)
-    } finally {
-        loading.value = false
-    }
-}
-
-const handleNodeClick = async (data) => {
-    currentSubject.value = data
-    questionsLoading.value = true
-    try {
-        const res = await request.get('/question/list-by-knowledge-point', {
-            params: { subjectId: data.id }
-        })
-        questions.value = res.data.map(q => ({
-            ...q,
-            userSelected: '',
-            isSubmitted: false,
-            isCorrect: false,
-            showAnalysis: false
-        }))
-    } catch (error) {
-        console.error(error)
-    } finally {
-        questionsLoading.value = false
-    }
-}
-
-const calculateProgress = () => {
-    if (!questions.value.length) return 0;
-    const submitted = questions.value.filter(q => q.isSubmitted).length;
-    return Math.round((submitted / questions.value.length) * 100);
-}
-
-const parseOptions = (opts) => {
-    if (!opts) return []
-    try {
-        const parsed = typeof opts === 'string' ? JSON.parse(opts) : opts
-        return parsed
-    } catch (e) {
-        return []
-    }
-}
-
-const getOptionLetter = (opt) => {
-    if (/^[A-Z][.、]/.test(opt)) {
-        return opt.charAt(0)
-    }
-    return opt.charAt(0)
-}
-
-const getOptionContent = (opt) => {
-    return opt.replace(/^[A-Z][.、\s]\s*/, '')
-}
-
-const getTypeName = (t) => ({ 1: '单选', 2: '多选', 3: '填空', 4: '简答' }[t] || '题目')
-const getTypeColor = (t) => ({ 1: '', 2: 'success', 3: 'warning', 4: 'info' }[t] || '')
-
-const selectOption = (q, opt) => {
-    if (q.isSubmitted) return
-    const letter = getOptionLetter(opt)
-
-    if (q.type === 2) { // 多选
-        let current = q.userSelected ? q.userSelected.split('') : []
-        if (current.includes(letter)) {
-            current = current.filter(l => l !== letter)
-        } else {
-            current.push(letter)
+        if (!targetExamSpec) {
+            ElMessage.warning(`请先在个人信息中选择${subject.name}的考试类型`)
+            return
         }
-        q.userSelected = current.sort().join('')
-    } else { // 单选/判断
-        q.userSelected = letter
-    }
-}
-
-const getOptionClass = (q, opt) => {
-    const letter = getOptionLetter(opt)
-    if (q.isSubmitted) {
-        const isAnswer = q.answer.includes(letter)
-        const isSelected = q.userSelected.includes(letter)
-
-        if (isAnswer) return 'correct-opt'
-        if (isSelected && !isAnswer) return 'wrong-opt'
-    } else {
-        if (q.userSelected && q.userSelected.includes(letter)) return 'selected-opt'
-    }
-    return ''
-}
-
-const submitAnswer = async (q) => {
-    if (!q.userSelected || (Array.isArray(q.userSelected) && q.userSelected.length === 0)) return
-
-    let answerStr = q.userSelected
-    if (Array.isArray(q.userSelected)) {
-        answerStr = q.userSelected.sort().join('')
     }
 
-    const dbAns = q.answer.replaceAll(/[,\\s]/g, "").toUpperCase();
-    const isRight = answerStr === dbAns
-
-    q.isCorrect = isRight
-    q.isSubmitted = true
+    // 保存当前选中的考试规格
+    activeExamSpec.value = targetExamSpec
 
     try {
-        await request.post('/record/submit', {
-            userId: userInfo.id,
-            questionId: q.id,
-            userAnswer: answerStr
-        })
-
-        if (currentSubject.value) {
-            currentSubject.value.finishedCount = (currentSubject.value.finishedCount || 0) + 1
+        const res = await getTreeByExamSpecApi(targetExamSpec.id)
+        if (res.code === 200) {
+            moduleTree.value = convertTreeData(res.data)
+            selectedNode.value = moduleTree.value[0] || null
         }
-    } catch (error) {
-        ElMessage.error('提交失败')
-        q.isSubmitted = false
+    } catch (e) { ElMessage.error('加载图谱失败') }
+
+    // 更新滑块位置
+    await nextTick()
+    const el = navRefs.value[index]
+    if (el) {
+        navSliderStyle.width = `${el.offsetWidth}px`
+        navSliderStyle.left = `${el.offsetLeft}px`
+        navSliderStyle.background = subject.gradient
+        navSliderStyle.opacity = '1'
     }
 }
 
-const renderLatex = (content) => {
-    if (!content) return ''
-    return content.replace(/\$([^$]+)\$/g, (match, tex) => {
-        try {
-            return katex.renderToString(tex, {
-                throwOnError: false,
-                displayMode: false
-            })
-        } catch (err) {
-            return match
-        }
-    }).replace(/\$\$([^$]+)\$\$/g, (match, tex) => {
-        try {
-            return katex.renderToString(tex, {
-                throwOnError: false,
-                displayMode: true
-            })
-        } catch (err) {
-            return match
+const convertTreeData = (nodes) => {
+    console.log('convertTreeData - nodes:', nodes)
+    return nodes.map(node => ({
+        id: node.id,
+        label: node.name,
+        type: node.level === 1 ? 'primary' : node.level === 2 ? 'secondary' : 'tertiary',
+        weight: node.dynamicWeight, // 使用动态权重
+        mastery: node.mastery || Math.floor(Math.random() * 100), // 演示用，后端有则取后端
+        solutionPatterns: node.solutionPatterns,
+        commonMistakes: node.commonMistakes,
+        examFrequency: node.examFrequency,
+        children: node.children?.length ? convertTreeData(node.children) : []
+    }))
+}
+
+const handleNodeClick = (node) => { selectedNode.value = node }
+
+
+// --- 逻辑处理 ---
+// 递归处理节点的函数
+const toggleTreeNodes = (nodes, status) => {
+    nodes.forEach(node => {
+        node.expanded = status
+        if (node.children && node.children.length > 0) {
+            toggleTreeNodes(node.children, status)
         }
     })
 }
 
-const getProgressGradient = (index) => {
-    const gradients = [
-        'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)',
-        'linear-gradient(90deg, #67c23a 0%, #85ce61 100%)',
-        'linear-gradient(90deg, #e6a23c 0%, #ebb563 100%)',
-        'linear-gradient(90deg, #f56c6c 0%, #f78989 100%)',
-        'linear-gradient(90deg, #909399 0%, #a6a9ad 100%)',
-        'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
-    ]
-    return gradients[index % gradients.length]
+// 全部展开
+const expandAllNodes = () => {
+    toggleTreeNodes(moduleTree.value, true)
 }
 
-onMounted(async () => {
-    // Check for rootId in query
-    const rootId = route.query.rootId
-    if (rootId) {
-        // 从科目列表页面跳转过来，需要先加载科目列表获取科目信息
-        await loadSubjectList()
-        // 找到对应的科目
-        const targetSubject = subjectList.value.find(s => s.id == rootId)
-        if (targetSubject) {
-            selectedRoot.value = targetSubject
-            mode.value = 'drill'
-            loadTree(rootId)
-        } else {
-            // 如果找不到，仍然进入 drill 模式，但使用 ID 作为名称
-            selectedRoot.value = { id: rootId, name: '科目' }
-            mode.value = 'drill'
-            loadTree(rootId)
-        }
-    } else {
-        loadSubjectList()
-    }
-})
+// 全部收起
+const collapseAllNodes = () => {
+    toggleTreeNodes(moduleTree.value, false)
+}
+
+onMounted(fetchExamSpecs)
 </script>
 
 <style scoped>
-.knowledge-practice-container {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
-    min-height: 100vh;
-}
-
-/* Selection Mode Styles */
-.selection-container {
-    padding: 32px;
-    max-width: 1400px;
-    margin: 0 auto;
-    animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-.page-header {
-    margin-bottom: 32px;
-    animation: slideDown 0.5s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.header-left h1 {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 32px;
-    font-weight: 700;
-    color: #303133;
-    margin: 0 0 8px 0;
-}
-
-.header-icon {
-    color: #409eff;
-}
-
-.header-left p {
-    font-size: 16px;
-    color: #909399;
-    margin: 0;
-}
-
-.subjects-section {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.subject-row {
-    background: #fff;
-    border-radius: 12px;
-    padding: 24px 28px;
-    display: grid;
-    grid-template-columns: auto 1fr auto auto;
-    gap: 24px;
-    align-items: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid transparent;
-    animation: slideUp 0.5s ease-out backwards;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.subject-row:hover {
-    transform: translateX(8px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    border-color: #409eff;
-}
-
-.subject-icon-box {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    transition: all 0.3s ease;
-}
-
-.subject-row:hover .subject-icon-box {
-    transform: scale(1.1) rotate(5deg);
-}
-
-.bg-color-0 {
-    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-    animation: gradientShift1 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-.bg-color-1 {
-    background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
-    animation: gradientShift2 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-.bg-color-2 {
-    background: linear-gradient(135deg, #e6a23c 0%, #ebb563 100%);
-    animation: gradientShift3 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-.bg-color-3 {
-    background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
-    animation: gradientShift4 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-.bg-color-4 {
-    background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%);
-    animation: gradientShift5 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-.bg-color-5 {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    animation: gradientShift6 3s ease infinite;
-    background-size: 200% 200%;
-}
-
-@keyframes gradientShift1 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes gradientShift2 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes gradientShift3 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes gradientShift4 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes gradientShift5 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes gradientShift6 {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-.subject-info {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.subject-info h3 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-    transition: color 0.3s;
-}
-
-.subject-row:hover .subject-info h3 {
-    color: #409eff;
-}
-
-.subject-desc {
-    margin: 0;
-    font-size: 14px;
-    color: #909399;
-}
-
-.subject-metrics {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.metric-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.metric-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: #303133;
-    line-height: 1;
-}
-
-.metric-value.accent {
-    color: #409eff;
-}
-
-.metric-label {
-    font-size: 12px;
-    color: #909399;
-}
-
-.metric-divider {
-    width: 1px;
-    height: 32px;
-    background: #e6e6e6;
-}
-
-.progress-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    min-width: 200px;
-}
-
-.progress-bar {
-    flex: 1;
-    height: 8px;
-    background: #f0f2f5;
-    border-radius: 4px;
+/* 容器与布局 */
+.topic-drill-container {
+    position: relative;
+    height: 100vh;
     overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.6s ease;
-    animation: progressShine 2s ease-in-out infinite;
-}
-
-@keyframes progressShine {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.8;
-    }
-}
-
-.arrow-icon {
-    color: #409eff;
-    transition: all 0.3s ease;
-}
-
-.subject-row:hover .arrow-icon {
-    transform: translateX(4px);
-    color: #66b1ff;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-/* Drill Mode Styles */
-.tree-aside {
-    width: 320px;
-    background: white;
-    border-right: 1px solid #e6e6e6;
+    background: #f8fafc;
+    padding: 24px;
     display: flex;
-    flex-direction: column;
+    overflow: hidden;
+    transition: background 0.6s ease;
+    box-sizing: border-box;
 }
 
-.aside-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #eee;
-    background: #fff;
-}
-
-.header-top {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.back-btn {
-    font-size: 14px;
-    padding: 0;
-}
-
-.aside-header h3 {
-    margin: 0;
-    font-size: 16px;
-    color: #303133;
-}
-
-.header-subtitle {
-    font-size: 12px;
-    color: #909399;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.custom-tree-node {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.header-glow {
+    position: absolute;
+    top: -100px;
+    left: 0;
     width: 100%;
-    padding-right: 10px;
-    font-size: 14px;
-}
-
-.node-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    margin-right: 8px;
-    flex: 1;
-}
-
-.questions-main {
-    padding: 20px 30px;
-    overflow-y: auto;
-    background: #f5f7fa;
+    height: 400px;
+    opacity: 0.15;
+    filter: blur(80px);
+    pointer-events: none;
+    transition: background 0.8s ease;
 }
 
 .content-wrapper {
-    max-width: 1000px;
+    max-width: 1400px;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
     margin: 0 auto;
-}
-
-.subject-header {
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.header-left h2 {
-    margin: 0;
-    font-size: 20px;
-    color: #303133;
-}
-
-.header-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-}
-
-.progress-text {
-    font-size: 12px;
-    color: #909399;
-}
-
-.question-list {
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-.question-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.3s;
-    border: 1px solid transparent;
-}
-
-.question-card:hover {
-    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
-}
-
-.q-header-row {
+/* 外层居中容器 */
+.navbar-container {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 16px;
+    justify-content: center;
+    width: 100%;
+    flex-shrink: 0;
 }
 
-.q-tag-group {
+/* 胶囊导航 */
+.subject-navbar {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 6px;
+    border-radius: 100px;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.05),
+        0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+}
+
+/* 滑块动画效果 */
+.nav-slider {
+    position: absolute;
+    top: 6px;
+    height: calc(100% - 12px);
+    border-radius: 100px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    z-index: 0;
+}
+
+.subject-pill {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 36px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #64748b;
+    font-weight: 500;
+    z-index: 1;
+    height: 40px;
+    font-size: 1rem;
 }
 
-.q-index {
-    font-family: monospace;
-    font-weight: bold;
-    color: #909399;
-    background: #f0f2f5;
-    padding: 2px 8px;
-    border-radius: 4px;
+.subject-pill .pill-label {
+    line-height: 1;
 }
 
-.q-content {
-    font-size: 16px;
-    margin-bottom: 24px;
-    line-height: 1.8;
-    color: #303133;
+.subject-pill.active {
+    color: white;
+    font-weight: 600;
 }
 
-.q-options {
+.main-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* 侧边栏：知识图谱条目 */
+.kb-sidebar {
+    background: white;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 24px;
+    transition: border-color 0.6s ease;
+    height: 100%;
+    overflow: hidden;
+    min-height: 0;
 }
 
-.option-item {
-    padding: 12px 20px;
-    border: 1px solid #dcdfe6;
-    border-radius: 8px;
-    cursor: pointer;
+.sidebar-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
-    align-items: center;
-    transition: all 0.2s;
-    background: #fff;
-    position: relative;
-}
-
-.option-item:hover {
-    background-color: #f5f7fa;
-    border-color: #c0c4cc;
-}
-
-.selected-opt {
-    border-color: #409eff;
-    background-color: #ecf5ff !important;
-    color: #409eff;
-    font-weight: 500;
-}
-
-.correct-opt {
-    border-color: #67c23a !important;
-    background-color: #f0f9eb !important;
-    color: #67c23a !important;
-}
-
-.wrong-opt {
-    border-color: #f56c6c !important;
-    background-color: #fef0f0 !important;
-    color: #f56c6c !important;
-}
-
-.opt-prefix {
-    font-weight: bold;
-    margin-right: 12px;
-    width: 24px;
-}
-
-.status-icon {
-    position: absolute;
-    right: 16px;
-    font-size: 18px;
-}
-
-.q-footer {
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding-top: 16px;
-    border-top: 1px dashed #eee;
+    align-items: center;
 }
 
-.footer-left {
-    display: flex;
-    gap: 12px;
+.sidebar-header h3 {
+    font-size: 1.1rem;
+    color: #1e293b;
+    margin: 0;
 }
 
-.result-box {
+.text-btn {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.tree-viewport {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+/* 针对左侧知识图谱和右侧内容面板设置滚动条 */
+.tree-viewport::-webkit-scrollbar,
+.content-panel::-webkit-scrollbar {
+    width: 6px;
+    /* 纵向滚动条宽度 */
+    height: 6px;
+    /* 横向滚动条高度 */
+}
+
+/* 滚动条轨道 */
+.tree-viewport::-webkit-scrollbar-track,
+.content-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* 滚动条滑块 */
+.tree-viewport::-webkit-scrollbar-thumb,
+.content-panel::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    transition: background-color 0.3s;
+}
+
+/* 悬浮时滑块颜色 - 这里建议配合你的主题色 */
+.tree-viewport::-webkit-scrollbar-thumb:hover,
+.content-panel::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(37, 99, 235, 0.4);
+}
+
+/* 针对 Firefox 的兼容性写法 (可选) */
+.tree-viewport,
+.content-panel {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+/* 知识树条目美化 */
+:deep(.node-wrapper) {
+    margin-bottom: 2px;
+}
+
+:deep(.node-item) {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+:deep(.node-item:hover) {
+    background: #f1f5f9;
+}
+
+:deep(.node-item.is-active) {
+    background: #eff6ff;
+    color: #2563eb;
     font-weight: 600;
-    font-size: 14px;
 }
 
-.result-box.correct {
-    color: #67c23a;
+:deep(.arrow) {
+    font-size: 10px;
+    transition: transform 0.2s;
+    width: 14px;
 }
 
-.result-box.wrong {
-    color: #f56c6c;
+:deep(.arrow.down) {
+    transform: rotate(90deg);
 }
 
-.analysis-wrapper {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #f0f2f5;
+:deep(.dot) {
+    width: 4px;
+    height: 4px;
+    background: #cbd5e1;
+    border-radius: 50%;
+    margin: 0 5px;
 }
 
-.analysis-box {
-    background: #fdf6ec;
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid #e6a23c;
+:deep(.children-container) {
+    padding-left: 20px;
+    margin-top: 2px;
+    border-left: 1px dashed #e2e8f0;
+    margin-left: 18px;
 }
 
-.analysis-title {
-    font-weight: bold;
-    color: #e6a23c;
-    margin-bottom: 12px;
+/* 右侧详情面板 */
+.content-panel {
+    background: white;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    transition: border-color 0.6s ease;
+}
+
+.detail-card {
+    padding: 40px;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 40px;
+}
+
+.type-tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 6px;
+    color: white;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+
+.quick-stats {
+    display: flex;
+    gap: 32px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
 }
 
-.analysis-content {
-    font-size: 15px;
-    color: #606266;
+.stat-item .label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+.stat-item .value {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.mini-progress-bar {
+    width: 100px;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mini-progress-bar .fill {
+    height: 100%;
+    transition: width 0.6s ease;
+}
+
+/* 信息板块 */
+.info-grid {
+    display: grid;
+    gap: 32px;
+}
+
+.info-block h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+}
+
+.step-item {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 16px;
+    margin-bottom: 12px;
+}
+
+.step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.mistake-list {
+    padding-left: 20px;
+    color: #e11d48;
+}
+
+.mistake-list li {
+    margin-bottom: 10px;
     line-height: 1.6;
+}
+
+/* 状态切换动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: all 0.3s;
+}
+
+.fade-slide-enter-from {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.fade-slide-leave-to {
+    opacity: 0;
+    transform: translateX(-20px);
 }
 
 .empty-state {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    color: #94a3b8;
 }
 
-.empty-tip {
-    color: #909399;
-    font-size: 14px;
-    margin-top: 10px;
+.floating-icons {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    opacity: 0.3;
+    animation: float 3s infinite ease-in-out;
 }
 
-.empty-questions {
-    margin-top: 40px;
-}
+@keyframes float {
 
-:deep(.katex) {
-    font-size: 1.1em;
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 </style>
+

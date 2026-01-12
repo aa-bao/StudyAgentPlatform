@@ -5,10 +5,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import org.example.kaoyanplatform.constant.SubjectLevelConstants;
 import org.example.kaoyanplatform.entity.MapQuestionSubject;
+import org.example.kaoyanplatform.entity.MapSubjectWeight;
 import org.example.kaoyanplatform.entity.Subject;
 import org.example.kaoyanplatform.entity.UserProgress;
 import org.example.kaoyanplatform.entity.dto.SubjectDTO;
 import org.example.kaoyanplatform.mapper.MapQuestionSubjectMapper;
+import org.example.kaoyanplatform.mapper.MapSubjectWeightMapper;
 import org.example.kaoyanplatform.mapper.SubjectMapper;
 import org.example.kaoyanplatform.mapper.UserProgressMapper;
 import org.example.kaoyanplatform.service.SubjectService;
@@ -41,6 +43,9 @@ public class SubjectServiceImpl extends ServiceImpl<SubjectMapper, Subject> impl
 
     @Autowired
     private UserProgressMapper userProgressMapper;
+
+    @Autowired
+    private MapSubjectWeightMapper mapSubjectWeightMapper;
 
     @Override
     public List<SubjectDTO> getTree(Long userId, Integer rootId) {
@@ -435,24 +440,69 @@ public class SubjectServiceImpl extends ServiceImpl<SubjectMapper, Subject> impl
 
     @Override
     public List<SubjectDTO> getTreeByExamSpec(Integer examSpecId, Long userId) {
-        // 获取指定考试规格下的所有子科目（Level 3 及以下）
-        List<Integer> descendantIds = getDescendantIds(examSpecId);
-        descendantIds.remove(examSpecId); // 移除考试规格节点本身
+        // 1. 首先查找直接子节点（parent_id = examSpecId）
+        QueryWrapper<Subject> directWrapper = new QueryWrapper<>();
+        directWrapper.eq("parent_id", examSpecId);
+        List<Subject> directChildren = list(directWrapper);
 
-        if (descendantIds.isEmpty()) {
+        // 2. 查找通过 scope 字段关联的子节点（parent_id = 0 且 scope 包含 examSpecId）
+        QueryWrapper<Subject> scopeWrapper = new QueryWrapper<>();
+        scopeWrapper.eq("parent_id", 0);
+        scopeWrapper.isNotNull("scope");
+        scopeWrapper.ne("scope", "");
+        List<Subject> scopeSubjects = list(scopeWrapper);
+
+        // 筛选出 scope 包含当前 examSpecId 的科目
+        List<Subject> matchedScopeSubjects = new ArrayList<>();
+        for (Subject s : scopeSubjects) {
+            if (StringUtils.hasText(s.getScope())) {
+                String[] scopeIds = s.getScope().split(",");
+                for (String scopeId : scopeIds) {
+                    try {
+                        if (examSpecId.toString().equals(scopeId.trim())) {
+                            matchedScopeSubjects.add(s);
+                            break;
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+
+        // 合并两种方式获取的子科目
+        List<Subject> allChildren = new ArrayList<>();
+        allChildren.addAll(directChildren);
+        allChildren.addAll(matchedScopeSubjects);
+
+        if (allChildren.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 获取所有子科目
-        List<Subject> allSubjects = listByIds(descendantIds);
+        // 3. 获取所有子节点的后代节点
+        Set<Integer> allRelatedIds = new HashSet<>();
+        for (Subject child : allChildren) {
+            allRelatedIds.add(child.getId());
+            // 递归获取所有后代
+            List<Integer> descendants = getDescendantIds(child.getId());
+            allRelatedIds.addAll(descendants);
+        }
 
-        // 获取统计数据
+        // 4. 获取所有相关科目
+        List<Subject> allSubjects = listByIds(new ArrayList<>(allRelatedIds));
+
+        // 5. 获取该考试规格下的权重映射
+        List<MapSubjectWeight> weightMappings = mapSubjectWeightMapper.listByExamSpecId(examSpecId);
+        Map<Integer, Float> weightMap = new HashMap<>();
+        for (MapSubjectWeight mapping : weightMappings) {
+            weightMap.put(mapping.getSubjectId(), mapping.getWeight());
+        }
+
+        // 6. 获取统计数据
         Map<Integer, Integer> questionCountMap = new HashMap<>();
         Map<Integer, Integer> finishedCountMap = new HashMap<>();
 
         // 获取题目数量
         QueryWrapper<MapQuestionSubject> qsWrapper = new QueryWrapper<>();
-        qsWrapper.in("subject_id", descendantIds);
+        qsWrapper.in("subject_id", allRelatedIds);
         qsWrapper.select("subject_id", "count(*) as count");
         qsWrapper.groupBy("subject_id");
         List<Map<String, Object>> qsCounts = mapQuestionSubjectMapper.selectMaps(qsWrapper);
@@ -464,14 +514,14 @@ public class SubjectServiceImpl extends ServiceImpl<SubjectMapper, Subject> impl
         if (userId != null) {
             QueryWrapper<UserProgress> upWrapper = new QueryWrapper<>();
             upWrapper.eq("user_id", userId);
-            upWrapper.in("subject_id", descendantIds);
+            upWrapper.in("subject_id", allRelatedIds);
             List<UserProgress> progressList = userProgressMapper.selectList(upWrapper);
             for (UserProgress up : progressList) {
                 finishedCountMap.put(up.getSubjectId(), up.getFinishedCount());
             }
         }
 
-        // 转换为 DTO 并构建树结构
+        // 7. 转换为 DTO 并构建树结构
         Map<Integer, SubjectDTO> dtoMap = new HashMap<>();
         for (Subject s : allSubjects) {
             SubjectDTO dto = new SubjectDTO();
@@ -479,32 +529,51 @@ public class SubjectServiceImpl extends ServiceImpl<SubjectMapper, Subject> impl
             dto.setChildren(new ArrayList<>());
             dto.setQuestionCount(questionCountMap.getOrDefault(s.getId(), 0));
             dto.setFinishedCount(finishedCountMap.getOrDefault(s.getId(), 0));
+
+            // 设置动态权重：从映射表中获取
+            if (weightMap.containsKey(s.getId())) {
+                dto.setDynamicWeight(weightMap.get(s.getId()));
+            }
+
             dtoMap.put(s.getId(), dto);
         }
 
-        // 构建树形结构（只返回子科目，不包括 examSpecId 节点本身）
+        // 8. 构建树形结构
         List<SubjectDTO> resultRoots = new ArrayList<>();
-        for (Subject s : allSubjects) {
-            SubjectDTO dto = dtoMap.get(s.getId());
 
-            // 如果父节点是 examSpecId，则为根节点
-            if (s.getParentId() != null && s.getParentId().equals(examSpecId)) {
+        // 首先处理直接子节点
+        for (Subject child : directChildren) {
+            SubjectDTO dto = dtoMap.get(child.getId());
+            if (dto != null) {
                 resultRoots.add(dto);
-            } else if (s.getParentId() != null && s.getParentId() != 0) {
-                // 否则添加到父节点的 children 中
+            }
+        }
+
+        // 然后处理通过 scope 关联的子节点
+        for (Subject child : matchedScopeSubjects) {
+            SubjectDTO dto = dtoMap.get(child.getId());
+            if (dto != null) {
+                resultRoots.add(dto);
+            }
+        }
+
+        // 构建父子关系
+        for (Subject s : allSubjects) {
+            if (s.getParentId() != null && s.getParentId() != 0) {
+                SubjectDTO child = dtoMap.get(s.getId());
                 SubjectDTO parent = dtoMap.get(s.getParentId());
-                if (parent != null) {
-                    parent.getChildren().add(dto);
+                if (child != null && parent != null) {
+                    parent.getChildren().add(child);
                 }
             }
         }
 
-        // 递归汇总统计数据
+        // 9. 递归汇总统计数据
         for (SubjectDTO root : resultRoots) {
             aggregateCounts(root);
         }
 
-        // 按照 sort 字段排序
+        // 10. 按照 sort 字段排序
         sortTree(resultRoots);
 
         return resultRoots;

@@ -1,7 +1,7 @@
 <template>
     <div class="dashboard-container">
         <!-- 侧边栏 -->
-        <div class="sidebar" :class="{ 'sidebar-exiting': isSidebarExiting, 'sidebar-entering': isSidebarEntering }">
+        <div class="sidebar" :class="{ 'sidebar-exiting': isSidebarExiting }">
             <div class="logo-section">
                 <div class="logo-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -106,7 +106,7 @@
         </div>
 
         <!-- 主内容区 -->
-        <div class="main-content" :class="{ 'sidebar-exiting-content': isSidebarExiting, 'content-entering': isContentEntering }">
+        <div class="main-content" :class="{ 'sidebar-exiting-content': isSidebarExiting }">
             <!-- 顶部欢迎区域 -->
             <div class="dashboard-header">
                 <div class="welcome-section">
@@ -126,21 +126,21 @@
                         <el-icon :size="18">
                             <Reading />
                         </el-icon>
-                        <span>开始学习</span>
+                        <span>刷书</span>
                     </el-button>
 
-                    <el-button size="large" @click="viewMistakes" class="action-button">
+                    <el-button size="large" @click="startTopicDrill" class="action-button">
                         <el-icon :size="18">
                             <Failed />
                         </el-icon>
-                        <span>查看错题</span>
+                        <span>刷题</span>
                     </el-button>
 
                     <el-button size="large" @click="startMockExam" class="action-button">
                         <el-icon :size="18">
                             <DocumentChecked />
                         </el-icon>
-                        <span>真题模考</span>
+                        <span>刷卷</span>
                     </el-button>
                 </div>
             </div>
@@ -376,8 +376,6 @@ const route = useRoute()
 
 // 侧边栏动画状态
 const isSidebarExiting = ref(false)
-const isSidebarEntering = ref(false)
-const isContentEntering = ref(false)
 
 const userInfo = ref({})
 
@@ -540,14 +538,18 @@ const navigateWithAnimation = (path) => {
     // 触发侧边栏退出动画
     isSidebarExiting.value = true
 
-    // 等待动画完成后再跳转 (0.4s 与 CSS 动画时长一致)
+    // 等待动画完成后再跳转 (0.3s，与退出动画时长一致)
     setTimeout(() => {
         router.push(path)
-    }, 400)
+    }, 300)
 }
 
 const startPractice = () => {
     navigateWithAnimation('/user/subject')
+}
+
+const startTopicDrill = () => {
+    navigateWithAnimation('/user/topic-drill')
 }
 
 const ViewDashboard = () => {
@@ -854,21 +856,9 @@ onMounted(() => {
     // 初始化图表
     const cleanup = initCharts()
 
-    // 检测是否从其他页面进入 Home,触发进入动画
-    const fromOtherPage = router.options.history.state?.back &&
-                         router.options.history.state.back !== '/user/home' &&
-                         router.options.history.state.back !== '/'
-
-    if (fromOtherPage) {
-        // 触发进入动画
-        isSidebarEntering.value = true
-        isContentEntering.value = true
-
-        // 动画完成后重置状态
-        setTimeout(() => {
-            isSidebarEntering.value = false
-            isContentEntering.value = false
-        }, 400)
+    // 检测是否已完成引导
+    if (localStorage.getItem('onboardingCompleted') === 'true') {
+        isNewUser.value = false
     }
 
     // 在组件卸载时清理
@@ -901,18 +891,14 @@ onMounted(() => {
     top: 0;
     z-index: 100;
     box-shadow: 2px 0 15px rgba(0, 0, 0, 0.05);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-exiting {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: scale(0.95) translateX(-10px);
     filter: blur(2px);
-}
-
-.sidebar-entering {
-    opacity: 0;
-    transform: translateX(-30px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .logo-section {
@@ -1172,18 +1158,14 @@ onMounted(() => {
 .main-content {
     flex: 1;
     margin-left: 260px;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     /* padding: 20px; */
 }
 
 .main-content.sidebar-exiting-content {
-    transform: translateX(100px);
+    transform: scale(1.02) translateX(20px);
     opacity: 0;
-}
-
-.main-content.content-entering {
-    transform: translateX(50px);
-    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-header {
