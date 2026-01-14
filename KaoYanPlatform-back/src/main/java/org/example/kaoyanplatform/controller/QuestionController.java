@@ -11,6 +11,8 @@ import org.example.kaoyanplatform.entity.Book;
 import org.example.kaoyanplatform.entity.Subject;
 import org.example.kaoyanplatform.entity.dto.QuestionDTO;
 import org.example.kaoyanplatform.entity.dto.LLMQuestionOutputDTO;
+import org.example.kaoyanplatform.entity.dto.QuestionImportDTO;
+import org.example.kaoyanplatform.entity.dto.QuestionExportDTO;
 import org.example.kaoyanplatform.mapper.QuestionMapper;
 import org.example.kaoyanplatform.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,9 @@ public class QuestionController {
 
     @Autowired
     private MapQuestionBookService mapQuestionBookService;
+
+    @Autowired
+    private PdfExportService pdfExportService;
 
     // 1. 按知识点获取题目（递归下级）
     @GetMapping("/list-by-knowledge-point")
@@ -240,6 +245,107 @@ public class QuestionController {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("识别出错：" + e.getMessage());
+        }
+    }
+
+    // 12. JSON批量导入题目
+    @PostMapping("/import")
+    @Operation(summary = "JSON批量导入题目", description = "接收JSON格式的题目数据，批量导入题库")
+    public Result importQuestions(@RequestBody QuestionImportDTO importDTO) {
+        if (importDTO.getQuestions() == null || importDTO.getQuestions().isEmpty()) {
+            return Result.error("题目列表不能为空");
+        }
+
+        if (importDTO.getBookId() == null) {
+            return Result.error("习题册ID不能为空");
+        }
+
+        if (importDTO.getSubjectIds() == null || importDTO.getSubjectIds().isEmpty()) {
+            return Result.error("科目ID不能为空");
+        }
+
+        try {
+            // 验证书本和科目是否存在
+            if (bookService.getById(importDTO.getBookId()) == null) {
+                return Result.error("习题册不存在");
+            }
+
+            for (Integer subjectId : importDTO.getSubjectIds()) {
+                if (subjectService.getById(subjectId) == null) {
+                    return Result.error("科目ID: " + subjectId + " 不存在");
+                }
+            }
+
+            // 批量保存题目
+            int successCount = 0;
+            int failCount = 0;
+            List<String> errorMessages = new ArrayList<>();
+
+            for (QuestionImportDTO.QuestionImportItem item : importDTO.getQuestions()) {
+                try {
+                    // 构造 QuestionDTO
+                    QuestionDTO questionDTO = new QuestionDTO();
+                    questionDTO.setType(item.getType());
+                    questionDTO.setContent(item.getContent());
+                    questionDTO.setOptions(item.getOptions());
+                    questionDTO.setAnswer(item.getAnswer());
+                    questionDTO.setAnalysis(item.getAnalysis());
+                    questionDTO.setTags(item.getTags());
+                    questionDTO.setSource(item.getSource());
+                    questionDTO.setBookIds(Collections.singletonList(importDTO.getBookId()));
+                    questionDTO.setSubjectIds(importDTO.getSubjectIds());
+
+                    // 保存题目
+                    boolean success = questionService.saveQuestionWithRelations(questionDTO);
+                    if (success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errorMessages.add("题目保存失败: " + item.getContent().substring(0, Math.min(50, item.getContent().length())));
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    errorMessages.add("题目导入失败: " + e.getMessage());
+                }
+            }
+
+            String resultMessage = String.format("导入完成！成功: %d, 失败: %d", successCount, failCount);
+            if (!errorMessages.isEmpty()) {
+                resultMessage += "\n错误信息:\n" + String.join("\n", errorMessages.subList(0, Math.min(5, errorMessages.size())));
+                if (errorMessages.size() > 5) {
+                    resultMessage += "\n...还有 " + (errorMessages.size() - 5) + " 条错误";
+                }
+            }
+
+            return Result.success(resultMessage);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    // 13. 导出题目为PDF
+    @PostMapping("/export/pdf")
+    @Operation(summary = "导出题目为PDF", description = "根据条件导出题目为PDF文件")
+    public Result exportToPDF(@RequestBody QuestionExportDTO exportDTO) {
+        try {
+            // 默认不包含答案（安全考虑）
+            if (exportDTO.getIncludeAnswers() == null) {
+                exportDTO.setIncludeAnswers(false);
+            }
+
+            // 生成PDF
+            String pdfPath = pdfExportService.generateQuestionsPDF(
+                    exportDTO.getSubjectId(),
+                    exportDTO.getBookId(),
+                    exportDTO.getQuestionIds(),
+                    exportDTO.getIncludeAnswers()
+            );
+
+            return Result.success(pdfPath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("PDF生成失败: " + e.getMessage());
         }
     }
 }

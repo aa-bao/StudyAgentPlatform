@@ -1,12 +1,12 @@
 <template>
-    <div class="user-progress-monitor">
+    <div class="admin-container">
         <!-- 统计卡片 -->
         <el-row :gutter="20" class="stats-row">
             <el-col :span="6">
                 <el-card shadow="hover" class="stats-card">
                     <div class="stats-content">
-                        <div class="stats-icon" style="background: #ecf5ff">
-                            <el-icon :size="24" color="#409EFF">
+                        <div class="stats-icon" style="background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%)">
+                            <el-icon :size="32" color="#409EFF">
                                 <User />
                             </el-icon>
                         </div>
@@ -20,8 +20,8 @@
             <el-col :span="6">
                 <el-card shadow="hover" class="stats-card">
                     <div class="stats-content">
-                        <div class="stats-icon" style="background: #f0f9ff">
-                            <el-icon :size="24" color="#67C23A">
+                        <div class="stats-icon" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2ff 100%)">
+                            <el-icon :size="32" color="#67C23A">
                                 <DocumentChecked />
                             </el-icon>
                         </div>
@@ -35,8 +35,8 @@
             <el-col :span="6">
                 <el-card shadow="hover" class="stats-card">
                     <div class="stats-content">
-                        <div class="stats-icon" style="background: #fdf6ec">
-                            <el-icon :size="24" color="#E6A23C">
+                        <div class="stats-icon" style="background: linear-gradient(135deg, #fdf6ec 0%, #fef0e6 100%)">
+                            <el-icon :size="32" color="#E6A23C">
                                 <CircleCheck />
                             </el-icon>
                         </div>
@@ -50,8 +50,8 @@
             <el-col :span="6">
                 <el-card shadow="hover" class="stats-card">
                     <div class="stats-content">
-                        <div class="stats-icon" style="background: #fef0f0">
-                            <el-icon :size="24" color="#F56C6C">
+                        <div class="stats-icon" style="background: linear-gradient(135deg, #fef0f0 0%, #fee2e2 100%)">
+                            <el-icon :size="32" color="#F56C6C">
                                 <TrendCharts />
                             </el-icon>
                         </div>
@@ -65,53 +65,72 @@
         </el-row>
 
         <!-- 学习排行榜 -->
-        <el-card shadow="never" class="ranking-card">
+        <el-card shadow="never" class="ranking-card table-card">
             <template #header>
                 <div class="card-header">
-                    <span class="card-title">🏆 学习排行榜 Top 10</span>
-                    <el-button type="primary" link @click="loadRanking" :icon="Refresh">刷新</el-button>
+                    <div class="text-header">
+                        <span class="title-text">🏆 学习排行榜</span>
+                        <div class="header-desc">Top 10 学习之星</div>
+                    </div>
+                    <div class="header-btns">
+                        <el-button type="primary" icon="Refresh" @click="loadRanking">刷新</el-button>
+                    </div>
                 </div>
             </template>
-            <el-table :data="rankingData" v-loading="loadingRanking" stripe>
-                <el-table-column label="排名" width="80" align="center">
+
+            <el-table :data="rankingData" v-loading="loadingRanking" class="modern-table" stripe>
+                <el-table-column label="排名" width="100" align="center">
                     <template #default="scope">
                         <div v-if="scope.$index < 3" class="rank-badge">
-                            <el-tag v-if="scope.$index === 0" type="danger" effect="dark">🥇 1</el-tag>
-                            <el-tag v-else-if="scope.$index === 1" type="warning" effect="dark">🥈 2</el-tag>
-                            <el-tag v-else-if="scope.$index === 2" type="success" effect="dark">🥉 3</el-tag>
+                            <el-tag v-if="scope.$index === 0" type="danger" effect="dark" size="large">🥇 1</el-tag>
+                            <el-tag v-else-if="scope.$index === 1" type="warning" effect="dark" size="large">🥈 2</el-tag>
+                            <el-tag v-else-if="scope.$index === 2" type="success" effect="dark" size="large">🥉 3</el-tag>
                         </div>
                         <div v-else class="rank-number">{{ scope.$index + 1 }}</div>
                     </template>
                 </el-table-column>
-                <el-table-column prop="user_id" label="用户ID" width="120" align="center" />
-                <el-table-column label="用户昵称" width="150" align="center">
+                <el-table-column prop="user_id" label="用户ID" width="150" align="center" />
+                <el-table-column label="用户昵称" width="180" align="center">
                     <template #default="scope">
-                        {{ getUserName(scope.row.user_id) }}
+                        <span class="user-name">{{ getUserName(scope.row.user_id) }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column prop="total_finished" label="完成题目数" width="120" align="center">
+                <el-table-column prop="total_finished" label="完成题目数" width="150" align="center">
                     <template #default="scope">
-                        <el-statistic :value="scope.row.total_finished" />
+                        <span class="stat-number">{{ scope.row.total_finished }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column prop="total_correct" label="正确题目数" width="120" align="center">
+                <el-table-column prop="total_correct" label="正确题目数" width="150" align="center">
                     <template #default="scope">
-                        <el-statistic :value="scope.row.total_correct" />
+                        <span class="stat-number correct">{{ scope.row.total_correct }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column label="正确率" width="120" align="center">
+                <el-table-column label="正确率" width="200" align="center">
                     <template #default="scope">
-                        <el-progress
-                            :percentage="calculateAccuracy(scope.row.total_correct, scope.row.total_finished)"
-                            :color="getProgressColor(calculateAccuracy(scope.row.total_correct, scope.row.total_finished))"
-                        />
+                        <div class="accuracy-wrapper">
+                            <el-progress
+                                :percentage="calculateAccuracy(scope.row.total_correct, scope.row.total_finished)"
+                                :color="getProgressColor(calculateAccuracy(scope.row.total_correct, scope.row.total_finished))"
+                                :stroke-width="12"
+                            />
+                        </div>
                     </template>
                 </el-table-column>
             </el-table>
         </el-card>
 
-        <!-- 搜索筛选 -->
-        <el-card shadow="never" class="search-card">
+        <!-- 学习进度详情 -->
+        <el-card shadow="never" class="table-card">
+            <template #header>
+                <div class="card-header">
+                    <div class="text-header">
+                        <span class="title-text">学习进度详情</span>
+                        <div class="header-desc">查看和管理用户学习进度</div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 搜索表单 -->
             <el-form :inline="true" :model="searchForm" class="search-form">
                 <el-form-item label="用户ID">
                     <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable style="width: 200px" />
@@ -127,51 +146,55 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item>
-                    <el-button type="primary" @click="loadProgress" :icon="Search">搜索</el-button>
-                    <el-button @click="resetSearch">重置</el-button>
+                    <el-button type="primary" icon="Search" @click="loadProgress">搜索</el-button>
+                    <el-button icon="Refresh" @click="resetSearch">重置</el-button>
                 </el-form-item>
             </el-form>
-        </el-card>
 
-        <!-- 学习进度表格 -->
-        <el-card shadow="never" class="table-card">
-            <el-table :data="tableData" v-loading="loading" stripe>
-                <el-table-column prop="id" label="记录ID" width="100" align="center" />
-                <el-table-column prop="userId" label="用户ID" width="120" align="center" />
-                <el-table-column label="用户昵称" width="150" align="center">
+            <!-- 数据表格 -->
+            <el-table :data="tableData" v-loading="loading" class="modern-table" stripe>
+                <el-table-column prop="id" label="记录ID" width="120" align="center" show-overflow-tooltip />
+                <el-table-column prop="userId" label="用户ID" width="150" align="center" />
+                <el-table-column label="用户昵称" width="180" align="center">
                     <template #default="scope">
-                        {{ getUserName(scope.row.userId) }}
+                        <span class="user-name">{{ getUserName(scope.row.userId) }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column prop="subjectId" label="科目ID" width="100" align="center" />
-                <el-table-column label="科目名称" width="200">
+                <el-table-column prop="subjectId" label="科目ID" width="120" align="center" />
+                <el-table-column label="科目名称" min-width="200" show-overflow-tooltip>
                     <template #default="scope">
                         {{ getSubjectName(scope.row.subjectId) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="finishedCount" label="完成题目数" width="120" align="center">
+                <el-table-column prop="finishedCount" label="完成题目数" width="140" align="center">
                     <template #default="scope">
-                        <el-tag type="primary">{{ scope.row.finishedCount || 0 }}</el-tag>
+                        <el-tag type="primary" effect="plain">{{ scope.row.finishedCount || 0 }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="correctCount" label="正确题目数" width="120" align="center">
+                <el-table-column prop="correctCount" label="正确题目数" width="140" align="center">
                     <template #default="scope">
-                        <el-tag type="success">{{ scope.row.correctCount || 0 }}</el-tag>
+                        <el-tag type="success" effect="plain">{{ scope.row.correctCount || 0 }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="正确率" width="200" align="center">
+                <el-table-column label="正确率" width="220" align="center">
                     <template #default="scope">
                         <div class="accuracy-wrapper">
                             <el-progress
                                 :percentage="calculateAccuracy(scope.row.correctCount, scope.row.finishedCount)"
                                 :color="getProgressColor(calculateAccuracy(scope.row.correctCount, scope.row.finishedCount))"
+                                :stroke-width="12"
                             />
                         </div>
                     </template>
                 </el-table-column>
-                <el-table-column prop="updateTime" label="更新时间" width="180" align="center" />
+                <el-table-column prop="updateTime" label="更新时间" width="180" align="center">
+                    <template #default="scope">
+                        <div class="full-time">{{ formatTime(scope.row.updateTime) }}</div>
+                    </template>
+                </el-table-column>
             </el-table>
 
+            <!-- 分页 -->
             <div class="pagination-container">
                 <el-pagination
                     :current-page="pageNum"
@@ -179,8 +202,8 @@
                     :page-sizes="[10, 20, 50, 100]"
                     :total="total"
                     layout="total, sizes, prev, pager, next, jumper"
-                    @size-change="loadProgress"
-                    @current-change="loadProgress"
+                    @size-change="handleSizeChange"
+                    @current-change="handlePageChange"
                 />
             </div>
         </el-card>
@@ -387,6 +410,24 @@ const getProgressColor = (percentage) => {
     return '#F56C6C'
 }
 
+// 格式化时间
+const formatTime = (timeStr) => {
+    if (!timeStr) return '-'
+    return timeStr.replace('T', ' ').substring(0, 19)
+}
+
+// 分页
+const handlePageChange = (page) => {
+    pageNum.value = page
+    loadProgress()
+}
+
+const handleSizeChange = (size) => {
+    pageSize.value = size
+    pageNum.value = 1
+    loadProgress()
+}
+
 // 重置搜索
 const resetSearch = () => {
     searchForm.value = {
@@ -407,22 +448,20 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.user-progress-monitor {
-    padding: 0;
-}
-
-/* 统计卡片 */
+/* ==================== 统计卡片 ==================== */
 .stats-row {
     margin-bottom: 20px;
 }
 
 .stats-card {
-    border-radius: 8px;
-    transition: transform 0.2s;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: 1px solid #e8ecef;
 }
 
 .stats-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .stats-content {
@@ -432,13 +471,14 @@ onMounted(() => {
 }
 
 .stats-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .stats-info {
@@ -446,69 +486,191 @@ onMounted(() => {
 }
 
 .stats-value {
-    font-size: 28px;
-    font-weight: 600;
-    color: #303133;
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
     line-height: 1.2;
+    background: linear-gradient(135deg, #1f2937 0%, #4b5563 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .stats-label {
     font-size: 14px;
-    color: #909399;
-    margin-top: 4px;
+    color: #6b7280;
+    margin-top: 6px;
+    font-weight: 500;
 }
 
-/* 排行榜样式 */
-.ranking-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-}
-
+/* ==================== 卡片头部 ==================== */
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #303133;
+.text-header {
+    position: relative;
+    padding-left: 14px;
 }
 
-.rank-badge {
+.title-text {
     font-size: 18px;
+    font-weight: 600;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
+}
+.header-desc {
+    font-size: 13px;
+    color: #909399;
+}
+
+.header-btns {
+    display: flex;
+    gap: 10px;
+}
+
+/* ==================== 搜索表单 ==================== */
+.search-form {
+    background: #fcfcfd;
+    padding: 18px 20px 0;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #ebeef5;
+}
+
+/* ==================== 表格样式 ==================== */
+.table-card {
+    border-radius: 12px;
+    border: 1px solid #e8ecef;
+    margin-bottom: 20px;
+}
+
+.ranking-card {
+    margin-bottom: 20px;
+}
+
+.modern-table {
+    font-size: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.modern-table :deep(.el-table__header th) {
+    background-color: #f8fafc !important;
+    color: #475569;
+    font-weight: 600;
+}
+
+/* ==================== 排行榜样式 ==================== */
+.rank-badge {
+    font-size: 20px;
     font-weight: bold;
 }
 
 .rank-number {
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #409eff;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+.user-name {
+    font-weight: 500;
+    color: #475569;
+}
+
+.stat-number {
     font-weight: 600;
-    color: #606266;
+    font-size: 16px;
+    color: #409eff;
 }
 
-/* 搜索区域 */
-.search-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-}
-
-.search-form {
-    margin-bottom: 0;
-}
-
-/* 表格区域 */
-.table-card {
-    border-radius: 8px;
-}
-
-.pagination-container {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
+.stat-number.correct {
+    color: #67c23a;
 }
 
 .accuracy-wrapper {
     padding: 0 10px;
+}
+
+.full-time {
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #475569;
+}
+
+/* ==================== 分页样式 ==================== */
+.pagination-container {
+    margin-top: 25px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: center;
+    background: #fdfdfd;
+    border-radius: 0 0 8px 8px;
+}
+
+:deep(.el-pagination.is-background .el-pager li) {
+    background-color: #fff;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+    background-color: #409eff;
+    color: #fff;
+    border-color: #409eff;
+    box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+}
+
+:deep(.el-pagination.is-background .el-pager li:hover) {
+    color: #409eff;
+    border-color: #409eff;
+}
+
+/* ==================== 进度条美化 ==================== */
+:deep(.el-progress__text) {
+    font-weight: 600;
+    font-size: 14px !important;
+}
+
+:deep(.el-progress-bar__outer) {
+    border-radius: 6px;
+}
+
+:deep(.el-progress-bar__inner) {
+    border-radius: 6px;
+}
+
+/* ==================== 输入框圆角 ==================== */
+:deep(.el-input__wrapper) {
+    border-radius: 6px !important;
+}
+
+/* ==================== Tag美化 ==================== */
+:deep(.el-tag--dark) {
+    border-radius: 6px;
+    font-weight: 600;
 }
 </style>

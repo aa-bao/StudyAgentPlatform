@@ -116,6 +116,16 @@ const routes = [
         path: 'user-progress-monitor',
         component: () => import('@/views/admin/UserProgressMonitor.vue')
       },
+      {
+        // 题目批量导入
+        path: 'question-import',
+        component: () => import('@/views/admin/QuestionImport.vue')
+      },
+      {
+        // 题目导出
+        path: 'question-export',
+        component: () => import('@/views/admin/QuestionExport.vue')
+      },
     ]
   }
 ]

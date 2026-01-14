@@ -224,6 +224,7 @@
     </div>
 </template>
 
+
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -437,14 +438,14 @@ onMounted(() => {
 
 .title-text {
     font-size: 18px;
-    font-weight: 700;
-    color: #1f2937;
-    display: block;
-    margin-bottom: 4px;
+    font-weight: 600;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
 }
 
-.text-header::before {
-    content: '';
+.title-text::before {
+    content: "";
     position: absolute;
     left: 0;
     top: 50%;

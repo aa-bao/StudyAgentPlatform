@@ -13,49 +13,49 @@
                     text-color="#606266" active-text-color="#409EFF" class="custom-menu">
                     <el-menu-item index="/admin/home">
                         <el-icon>
-                            <HomeFilled />
+                            <img :src="dashboardIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>数据看板</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/users-manage">
                         <el-icon>
-                            <User />
+                            <img :src="userIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>用户管理</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/mistake-monitor">
                         <el-icon>
-                            <Warning />
+                            <img :src="correctionNotebookIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>错题监控</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/subjects-manage">
                         <el-icon>
-                            <Files />
+                            <img :src="treeIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>科目体系管理</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/books-manage">
                         <el-icon>
-                            <Reading />
+                            <Management />
                         </el-icon>
                         <span>习题册管理</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/questions-manage">
                         <el-icon>
-                            <Document />
+                            <img :src="testBaseIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>题库管理</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/papers-manage">
                         <el-icon>
-                            <Tickets />
+                            <img :src="mockExamIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>试卷管理</span>
                     </el-menu-item>
                     <el-menu-item index="/admin/exam-record-manage">
                         <el-icon>
-                            <Notebook />
+                            <img :src="examinationRecordIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>考试记录管理</span>
                     </el-menu-item>
@@ -65,12 +65,24 @@
                         </el-icon>
                         <span>学习进度监控</span>
                     </el-menu-item>
+                    <el-menu-item index="/admin/question-import">
+                        <el-icon>
+                            <Upload />
+                        </el-icon>
+                        <span>题目批量导入</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/question-export">
+                        <el-icon>
+                            <Download />
+                        </el-icon>
+                        <span>题目导出PDF</span>
+                    </el-menu-item>
 
                     <div class="menu-divider"></div>
 
                     <el-menu-item index="/user/dashboard" class="preview-item">
                         <el-icon>
-                            <Monitor />
+                            <img :src="homeIcon" class="menu-icon-img" />
                         </el-icon>
                         <span>学生端预览</span>
                     </el-menu-item>
@@ -87,11 +99,14 @@
                             <span class="el-dropdown-link user-profile">
                                 <el-avatar :size="36" :src="userAvatar" />
                                 <span class="username">Admin</span>
-                                <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
                             </span>
                             <template #dropdown>
                                 <el-dropdown-menu>
-                                    <el-dropdown-item @click="handleLogout" icon="SwitchButton">退出登录</el-dropdown-item>
+                                    <el-dropdown-item @click="handleLogout">
+                                        <el-icon><SwitchButton /></el-icon>
+                                        <span>退出登录</span>
+                                    </el-dropdown-item>
                                 </el-dropdown-menu>
                             </template>
                         </el-dropdown>
@@ -111,10 +126,20 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { HomeFilled, Document, Monitor, Management, Reading, Files, User, Warning, SwitchButton, Tickets, Notebook } from '@element-plus/icons-vue'
+import { Management, TrendCharts, ArrowDown, SwitchButton, Notebook, Upload, Download } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useTransitionStore } from '@/stores/transition'
 import { computed, onMounted } from 'vue'
+
+// 导入自定义图标
+import homeIcon from '@/assets/icons/home.svg?url'
+import dashboardIcon from '@/assets/icons/dashboard.svg?url'
+import treeIcon from '@/assets/icons/tree.svg?url'
+import mockExamIcon from '@/assets/icons/mock-exam.svg?url'
+import correctionNotebookIcon from '@/assets/icons/correction-notebook.svg?url'
+import userIcon from '@/assets/icons/user-manage.svg?url'
+import testBaseIcon from '@/assets/icons/test-base.svg?url'
+import examinationRecordIcon from '@/assets/icons/examination-record.svg?url'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -284,6 +309,17 @@ onMounted(() => {
     color: #606266;
 }
 
+/* 下拉菜单样式 */
+:deep(.el-dropdown-menu__item) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+:deep(.el-dropdown-menu__item .el-icon) {
+    font-size: 16px;
+}
+
 /* 内容区 */
 .content-main {
     background-color: #f0f2f5;
@@ -312,5 +348,19 @@ onMounted(() => {
     height: 20px;
     fill: currentColor;
     vertical-align: middle;
+}
+
+/* 自定义SVG图标样式 */
+.menu-icon-img {
+    width: 18px;
+    height: 18px;
+    filter: invert(41%) sepia(5%) saturate(542%) hue-rotate(182deg) brightness(91%) contrast(87%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-menu-item:hover .menu-icon-img),
+:deep(.el-menu-item.is-active .menu-icon-img) {
+    filter: invert(53%) sepia(96%) saturate(3089%) hue-rotate(196deg) brightness(100%) contrast(101%);
+    transform: scale(1.08);
 }
 </style>
