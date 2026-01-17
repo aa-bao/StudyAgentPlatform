@@ -9,7 +9,7 @@
         <relativePath/>
     </parent>
     <groupId>org.example</groupId>
-    <artifactId>KaoYanPlatform</artifactId>
+    <artifactId>java-back</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>KaoYanPlatform</name>
     <description>KaoYanPlatform</description>
