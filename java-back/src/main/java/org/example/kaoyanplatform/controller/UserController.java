@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.entity.User;
 import org.example.kaoyanplatform.entity.dto.UserStudyStatsDTO;
-import org.example.kaoyanplatform.entity.dto.HomePageDataDTO;
 import org.example.kaoyanplatform.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

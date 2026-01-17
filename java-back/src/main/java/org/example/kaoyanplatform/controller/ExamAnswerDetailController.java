@@ -74,7 +74,6 @@ public class ExamAnswerDetailController {
             int subjective = 0;
             int objective = 0;
             double totalScore = 0;
-            double maxScore = 0;
 
             for (ExamAnswerDetail detail : details) {
                 totalScore += detail.getScoreEarned().doubleValue();

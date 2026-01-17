@@ -29,9 +29,6 @@ public class PaperController {
     @Autowired
     private MapPaperQuestionService mapPaperQuestionService;
 
-    @Autowired
-    private QuestionService questionService;
-
     @PostMapping("/add")
     @Operation(summary = "新增试卷", description = "创建新试卷，支持设置试卷结构和题目关联")
     public Result<String> addPaper(@RequestBody Paper paper) {

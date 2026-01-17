@@ -4,7 +4,13 @@
             <!-- 侧边栏 -->
             <el-aside v-if="!route.meta.hideLayout" width="70px" class="aside-menu">
                 <div class="logo-box">
-                    <span class="logo-icon">📚</span>
+                    <div class="logo-icon-wrapper">
+                        <svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 16C14 14.8954 14.8954 14 16 14H20C21.1046 14 22 14.8954 22 16V32C22 33.1046 21.1046 34 20 34H16C14.8954 34 14 33.1046 14 32V16Z" fill="white" fill-opacity="0.9"/>
+                            <path d="M26 20C26 18.8954 26.8954 18 28 18H32C33.1046 18 34 18.8954 34 20V32C34 33.1046 33.1046 34 32 34H28C26.8954 34 26 33.1046 26 32V20Z" fill="white" fill-opacity="0.9"/>
+                            <circle cx="24" cy="38" r="2" fill="white" fill-opacity="0.6"/>
+                        </svg>
+                    </div>
                 </div>
 
                 <div class="custom-menu">
@@ -86,29 +92,77 @@
                         </div>
                         <template #dropdown>
                             <el-dropdown-menu class="user-dropdown-menu">
+                                <!-- 用户信息头部 -->
                                 <div class="dropdown-header">
-                                    <el-avatar :size="42" :src="userAvatar" />
+                                    <div class="header-avatar-wrapper">
+                                        <el-avatar :size="48" :src="userAvatar" class="header-avatar" />
+                                    </div>
                                     <div class="header-user-info">
                                         <div class="header-user-name">{{ userName }}</div>
-                                        <div class="header-user-role">{{ userRole === 'ADMIN' ? '管理员' : '学生' }}</div>
+                                        <div class="header-user-role-badge">
+                                            <svg class="role-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+                                            </svg>
+                                            <span>{{ userRole === 'ADMIN' ? '管理员' : '学生' }}</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <el-dropdown-item divided @click="router.push('/user/profile')">
-                                    <el-icon><UserFilled /></el-icon>
-                                    <span>个人主页</span>
-                                </el-dropdown-item>
-                                <el-dropdown-item @click="router.push('/user/profile?tab=settings')">
-                                    <el-icon><Setting /></el-icon>
-                                    <span>账号设置</span>
-                                </el-dropdown-item>
-                                <el-dropdown-item v-if="userRole === 'ADMIN'" @click="router.push('/admin/home')">
-                                    <el-icon><Management /></el-icon>
-                                    <span>进入后台管理系统</span>
-                                </el-dropdown-item>
-                                <el-dropdown-item divided @click="handleLogout" class="logout-item">
-                                    <el-icon><SwitchButton /></el-icon>
-                                    <span>退出登录</span>
-                                </el-dropdown-item>
+
+                                <!-- 菜单项 -->
+                                <div class="dropdown-menu-items">
+                                    <div class="menu-item" @click="router.push('/user/profile')">
+                                        <div class="menu-item-icon personal-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div class="menu-item-content">
+                                            <span class="menu-item-title">个人主页</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="menu-item" @click="router.push('/user/messages')">
+                                        <div class="menu-item-icon message-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div class="menu-item-content">
+                                            <span class="menu-item-title">消息</span>
+                                        </div>
+                                        <el-badge :value="5" :max="99" class="menu-item-badge" />
+                                    </div>
+
+                                    <div class="menu-divider"></div>
+
+                                    <div v-if="userRole === 'ADMIN'" class="menu-item" @click="router.push('/admin/home')">
+                                        <div class="menu-item-icon admin-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div class="menu-item-content">
+                                            <span class="menu-item-title">后台管理</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="menu-item logout-menu-item" @click="handleLogout">
+                                        <div class="menu-item-icon logout-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div class="menu-item-content">
+                                            <span class="menu-item-title">退出登录</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </el-dropdown-menu>
                         </template>
                     </el-dropdown>
@@ -129,31 +183,96 @@
         <!-- 未完成考试强制弹窗 -->
         <el-dialog
             v-model="showIncompleteExamDialog"
-            title="⚠️ 检测到未完成的考试"
-            width="500px"
+            width="520px"
             :close-on-click-modal="false"
             :close-on-press-escape="false"
             :show-close="false"
             class="incomplete-exam-dialog"
+            align-center
         >
-            <div class="dialog-content">
-                <div class="exam-info-card">
-                    <div class="exam-icon">📝</div>
-                    <div class="exam-details">
-                        <h3 class="exam-title">{{ incompleteExamInfo.paperTitle }}</h3>
-                        <p class="exam-time">{{ incompleteExamInfo.startTime }}</p>
+            <template #header>
+                <div class="custom-dialog-header">
+                    <div class="header-icon-wrapper">
+                        <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="url(#gradient-warning)" />
+                            <path d="M12 8V12M12 16H12.01" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            <defs>
+                                <linearGradient id="gradient-warning" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#fbbf24" />
+                                    <stop offset="100%" stop-color="#f59e0b" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="header-content">
+                        <h3 class="header-title">检测到未完成的考试</h3>
+                        <p class="header-subtitle">请继续完成您的考试之旅</p>
                     </div>
                 </div>
-                <div class="warning-text">
-                    <p>
-                        您有一场考试尚未完成，为了更好的评估您的各项能力，请
-                        <strong class="highlight">认真作答</strong>完成考试。
-                    </p>
+            </template>
+
+            <div class="dialog-content">
+                <div class="exam-info-card">
+                    <div class="exam-icon-wrapper">
+                        <svg class="exam-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="18" height="18" rx="2" fill="url(#gradient-exam)" opacity="0.15"/>
+                            <path d="M9 11H15M9 14H12M7 7H17C17.5304 7 18.0391 7.21071 18.4142 7.58579C18.7893 7.96086 19 8.46957 19 9V17C19 17.5304 18.7893 18.0391 18.4142 18.4142C18.0391 18.7893 17.5304 19 17 19H7C6.46957 19 5.96086 18.7893 5.58579 18.4142C5.21071 18.0391 5 17.5304 5 17V9C5 8.46957 5.21071 7.96086 5.58579 7.58579C5.96086 7.21071 6.46957 7 7 7Z" fill="url(#gradient-exam)"/>
+                            <defs>
+                                <linearGradient id="gradient-exam" x1="5" y1="7" x2="19" y2="19" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#1d4ed8" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="exam-details">
+                        <h3 class="exam-title">{{ incompleteExamInfo.paperTitle }}</h3>
+                        <div class="exam-meta">
+                            <span class="exam-time-badge">
+                                <svg class="time-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                {{ incompleteExamInfo.startTime }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="message-box">
+                    <div class="message-icon-wrapper">
+                        <svg class="message-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="url(#gradient-info)" opacity="0.1"/>
+                            <path d="M12 16V12M12 8H12.01" stroke="url(#gradient-info)" stroke-width="2.5" stroke-linecap="round"/>
+                            <defs>
+                                <linearGradient id="gradient-info" x1="7" y1="7" x2="17" y2="17" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#2563eb" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="message-content">
+                        <p class="message-text">
+                            检测到您有一场考试尚未完成，为了
+                            <span class="highlight">准确评估</span>
+                            您的各项能力，建议您继续认真作答完成考试。
+                        </p>
+                    </div>
                 </div>
             </div>
+
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" @click="continueExam" class="continue-btn">回到考试</el-button>
+                    <el-button @click="abandonExam" class="abandon-btn" size="large">
+                        <span>放弃考试</span>
+                    </el-button>
+                    <el-button type="primary" @click="continueExam" class="continue-btn" size="large">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>继续考试</span>
+                    </el-button>
                 </div>
             </template>
         </el-dialog>
@@ -359,44 +478,60 @@ onMounted(() => {
 
 /* 侧边栏 */
 .aside-menu {
-    background: rgba(255, 255, 255, 0.85);
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
     backdrop-filter: blur(15px);
     height: 100vh;
-    border-right: 1px solid rgba(219, 234, 254, 0.5) !important;
-    box-shadow: 2px 0 20px rgba(59, 130, 246, 0.08);
+    border-right: 1px solid rgba(64, 158, 255, 0.1) !important;
+    box-shadow: 3px 0 16px rgba(64, 158, 255, 0.08);
     overflow: hidden;
     z-index: 100;
     display: flex;
     flex-direction: column;
+    border: none !important;
+    padding: 0 !important;
 }
 
 /* Logo区域 */
 .logo-box {
     height: 70px;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(96, 165, 250, 0.05) 100%);
-    border-bottom: 1px solid rgba(219, 234, 254, 0.6);
+    background: linear-gradient(135deg, #409EFF 0%, #0066CC 100%);
     position: relative;
+    overflow: hidden;
+    border: none !important;
+    margin: 0 !important;
+    flex-shrink: 0;
 }
 
 .logo-box::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent 0%, #3b82f6 50%, transparent 100%);
-    opacity: 0.6;
+    display: none;
 }
 
-.logo-icon {
-    font-size: 32px;
+.logo-icon-wrapper {
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
+    
+}
+
+.logo-icon {
+    width: 100%;
+    height: 100%;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
 }
 
 /* 菜单区域 */
@@ -404,23 +539,20 @@ onMounted(() => {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 12px 8px;
+    padding: 16px 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 1px;
 }
 
 .custom-menu::-webkit-scrollbar {
-    width: 4px;
+    width: 0;
+    display: none;
 }
 
-.custom-menu::-webkit-scrollbar-thumb {
-    background: rgba(59, 130, 246, 0.2);
-    border-radius: 2px;
-}
-
-.custom-menu::-webkit-scrollbar-track {
-    background: transparent;
+.custom-menu {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 /* 菜单项 */
@@ -428,11 +560,11 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 50px;
+    height: 25px;
     padding: 0;
     text-decoration: none;
-    border-radius: 10px;
-    color: #64748b;
+    border-radius: 12px;
+    color: #5a5e66;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -445,25 +577,27 @@ onMounted(() => {
     top: 0;
     bottom: 0;
     width: 3px;
-    background: linear-gradient(to bottom, #3b82f6, #60a5fa);
+    background: linear-gradient(180deg, #409EFF 0%, #0066CC 100%);
+    border-radius: 0 12px 12px 0;
     transform: scaleY(0);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .menu-item:hover {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+    background: linear-gradient(90deg, rgba(64, 158, 255, 0.08) 0%, rgba(64, 158, 255, 0.04) 100%);
+    color: #409EFF;
+    transform: translateX(2px);
 }
 
 .menu-item:hover::before {
-    transform: scaleY(1);
+    transform: scaleY(0.5);
 }
 
 .menu-item.active {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(96, 165, 250, 0.12) 100%);
-    color: #3b82f6;
+    background: linear-gradient(90deg, rgba(64, 158, 255, 0.15) 0%, rgba(0, 102, 204, 0.08) 100%);
+    color: #409EFF;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
 }
 
 .menu-item.active::before {
@@ -480,16 +614,21 @@ onMounted(() => {
 }
 
 .menu-icon-svg {
-    width: 24px;
-    height: 24px;
-    filter: invert(41%) sepia(5%) saturate(542%) hue-rotate(182deg) brightness(91%) contrast(87%);
+    width: 22px;
+    height: 22px;
+    filter: invert(45%) sepia(8%) saturate(1597%) hue-rotate(179deg) brightness(95%) contrast(85%);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.menu-item:hover .menu-icon-svg,
+.menu-item:hover .menu-icon-svg {
+    filter: invert(42%) sepia(98%) saturate(1814%) hue-rotate(189deg) brightness(99%) contrast(91%);
+    transform: scale(1.15);
+}
+
 .menu-item.active .menu-icon-svg {
-    filter: invert(53%) sepia(96%) saturate(3089%) hue-rotate(196deg) brightness(100%) contrast(101%);
-    transform: scale(1.08);
+    filter: invert(0%) sepia(0%) saturate(100%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 8px rgba(64, 158, 255, 0.5));
 }
 
 /* 菜单文字 - 默认隐藏 */
@@ -543,7 +682,7 @@ onMounted(() => {
 /* 分割线 */
 .menu-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(64, 158, 255, 0.15) 50%, transparent 100%);
     margin: 16px 12px;
 }
 
@@ -563,29 +702,19 @@ onMounted(() => {
 /* 用户中心区域 - 底部固定 */
 .user-center-section {
     margin-top: auto;
-    padding: 12px;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(96, 165, 250, 0.04) 100%);
-    border-top: 1px solid rgba(219, 234, 254, 0.6);
+    padding: 5px 0;
     flex-shrink: 0;
     position: relative;
-}
-
-.user-center-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, #3b82f6 50%, transparent 100%);
-    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .user-profile-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px;
+    padding: 0px 0;
     background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(219, 234, 254, 0.6);
@@ -595,6 +724,8 @@ onMounted(() => {
     box-shadow: 0 2px 10px rgba(59, 130, 246, 0.08);
     position: relative;
     overflow: visible;
+    width: 54px;
+    height: 54px;
 }
 
 .user-profile-card::before {
@@ -624,6 +755,9 @@ onMounted(() => {
     position: relative;
     flex-shrink: 0;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .user-avatar {
@@ -637,7 +771,7 @@ onMounted(() => {
     transform: scale(1.05);
 }
 
-.online-indicator {
+/* .online-indicator {
     position: absolute;
     bottom: 0;
     right: 0;
@@ -648,7 +782,7 @@ onMounted(() => {
     border-radius: 50%;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+} */
 
 @keyframes pulse {
     0%, 100% {
@@ -663,67 +797,231 @@ onMounted(() => {
 .user-dropdown-menu {
     padding: 0;
     border: none;
-    border-radius: 14px;
-    box-shadow: 0 10px 40px rgba(59, 130, 246, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
     overflow: hidden;
-    min-width: 240px;
+    min-width: 260px;
+    background: white;
 }
 
-:deep(.user-dropdown-menu .el-dropdown-menu__item) {
-    padding: 11px 18px;
-    font-size: 14px;
-    color: #4b5563;
-    transition: all 0.2s;
-}
-
-:deep(.user-dropdown-menu .el-dropdown-menu__item:hover) {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
-}
-
-:deep(.user-dropdown-menu .el-dropdown-menu__item .el-icon) {
-    margin-right: 10px;
-    font-size: 17px;
-    color: inherit;
-}
-
+/* 下拉菜单头部 */
 .dropdown-header {
-    padding: 18px;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(96, 165, 250, 0.08) 100%);
-    border-bottom: 1px solid rgba(219, 234, 254, 0.6);
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.header-avatar-wrapper {
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.header-avatar {
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .header-user-info {
+    text-align: center;
+}
+
+.header-user-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.header-user-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: #dbeafe;
+    border-radius: 12px;
+    font-size: 11px;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.role-icon {
+    width: 11px;
+    height: 11px;
+    color: #3b82f6;
+}
+
+/* 菜单项容器 */
+.dropdown-menu-items {
+    padding: 12px 16px;
+}
+
+.menu-item-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 8px 0;
+}
+
+/* 菜单项 */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    margin-bottom: 4px;
+}
+
+.menu-item:last-child {
+    margin-bottom: 0;
+}
+
+.menu-item:hover {
+    background: #f1f5f9;
+}
+
+/* 图标容器 */
+.menu-item-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+/* 统一容器大小 */
+.user-dropdown-menu .menu-item-icon {
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    /* 稍微圆润一点更协调 */
+    flex-shrink: 0;
+}
+
+/* 统一内部图标的基础大小 */
+.user-dropdown-menu .menu-item-icon svg,
+.user-dropdown-menu .menu-item-icon img {
+    width: 18px !important;
+    /* 统一减小到 18px，给背景留白 */
+    height: 18px !important;
+    display: block;
+    transition: transform 0.2s;
+}
+
+/* 个人主页图标 */
+.personal-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.personal-icon svg {
+    color: white;
+}
+
+/* 消息图标 */
+.message-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.message-icon svg {
+    color: white;
+}
+
+/* 后台管理图标 */
+.admin-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.admin-icon svg {
+    color: white;
+}
+
+/* 退出登录图标 */
+.logout-icon {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.logout-icon svg {
+    color: white;
+}
+
+/* 悬停效果 */
+.menu-item:hover .personal-icon {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.menu-item:hover .message-icon {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+.menu-item:hover .admin-icon {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.menu-item:hover .logout-icon {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.menu-item-content {
     flex: 1;
     min-width: 0;
 }
 
-.header-user-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.header-user-role {
-    font-size: 12px;
-    color: #3b82f6;
+.menu-item-title {
+    font-size: 14px;
     font-weight: 500;
+    color: #334155;
+    display: block;
 }
 
-.logout-item {
-    color: #ef4444 !important;
+.menu-item-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    display: none;
 }
 
-.logout-item:hover {
-    background: rgba(239, 68, 68, 0.1) !important;
-    color: #dc2626 !important;
+.menu-item-badge {
+    margin-left: auto;
+}
+
+:deep(.menu-item-badge .el-badge__content) {
+    background: #ef4444;
+    border: 2px solid #fff;
+    font-weight: 600;
+    font-size: 11px;
+    height: 18px;
+    line-height: 14px;
+    padding: 0 5px;
+}
+
+.admin-menu-item:hover .menu-item-title {
+    color: #f59e0b;
+}
+
+.logout-menu-item:hover {
+    background: #fef2f2;
+}
+
+.logout-menu-item:hover .menu-item-title {
+    color: #ef4444;
 }
 
 /* 内容区 */
@@ -792,93 +1090,293 @@ onMounted(() => {
 }
 
 /* 未完成考试弹窗样式 */
+.incomplete-exam-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
 .incomplete-exam-dialog :deep(.el-dialog__header) {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-    border-bottom: 2px solid #f97316;
-    padding: 20px;
+    padding: 0;
+    margin: 0;
 }
 
-.incomplete-exam-dialog :deep(.el-dialog__title) {
-    font-size: 18px;
-    font-weight: 600;
-    color: #c2410c;
+.incomplete-exam-dialog :deep(.el-dialog__body) {
+    padding: 0;
 }
 
+.incomplete-exam-dialog :deep(.el-dialog__footer) {
+    padding: 0;
+    margin: 0;
+}
+
+/* 自定义弹窗头部 */
+.custom-dialog-header {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.custom-dialog-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f59e0b' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+}
+
+.header-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.header-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.header-content {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.header-title {
+    margin: 0 0 4px 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #92400e;
+    letter-spacing: -0.3px;
+}
+
+.header-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: #b45309;
+    font-weight: 500;
+}
+
+/* 弹窗内容 */
 .dialog-content {
-    padding: 20px;
+    padding: 28px;
+    background: #ffffff;
 }
 
+/* 考试信息卡片 */
 .exam-info-card {
     display: flex;
     align-items: center;
     gap: 16px;
     padding: 20px;
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-radius: 12px;
-    border: 2px solid #3b82f6;
+    border-radius: 16px;
+    border: 2px solid rgba(59, 130, 246, 0.2);
     margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
 }
 
-.exam-icon {
-    font-size: 48px;
-    line-height: 1;
+.exam-info-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 50%, #3b82f6 100%);
+}
+
+.exam-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.exam-icon-svg {
+    width: 32px;
+    height: 32px;
 }
 
 .exam-details {
     flex: 1;
+    min-width: 0;
 }
 
 .exam-title {
-    margin: 0 0 8px 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e40af;
+    margin: 0 0 10px 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1.4;
+    word-break: break-word;
 }
 
-.exam-time {
+.exam-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.exam-time-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(59, 130, 246, 0.15);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.time-icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* 消息提示框 */
+.message-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-radius: 12px;
+    border-left: 4px solid #3b82f6;
+}
+
+.message-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 10px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.message-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.message-content {
+    flex: 1;
+    padding-top: 2px;
+}
+
+.message-text {
     margin: 0;
     font-size: 14px;
-    color: #64748b;
-}
-
-.warning-text {
-    padding: 16px;
-    background: #fef3c7;
-    border-radius: 6px;
-}
-
-.warning-text p {
-    margin: 0;
-    font-size: 15px;
-    color: #92400e;
-    line-height: 1.6;
+    color: #334155;
+    line-height: 1.7;
+    font-weight: 500;
 }
 
 .highlight {
-    color: #d32f2f;
-    font-weight: bold;
-    font-size: 1.1em;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    color: #2563eb;
+    font-weight: 700;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
+/* 弹窗底部 */
 .dialog-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    padding: 20px 28px 28px;
+    background: #fafafa;
+    border-top: 1px solid #e5e7eb;
+}
+
+.abandon-btn {
+    flex: 1;
+    height: 48px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 15px;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.abandon-btn:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
 }
 
 .continue-btn {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    flex: 1.5;
+    height: 48px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     border: none;
-    padding: 12px 24px;
     font-weight: 600;
-    width: 100%;
-    height: 50px;
+    font-size: 15px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .continue-btn:hover {
-    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* 弹窗动画 */
+.incomplete-exam-dialog :deep(.el-dialog) {
+    border-radius: 16px;
+    overflow: hidden;
+    animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 </style>

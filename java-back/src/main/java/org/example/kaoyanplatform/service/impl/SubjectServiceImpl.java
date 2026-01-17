@@ -264,15 +264,6 @@ public class SubjectServiceImpl extends ServiceImpl<SubjectMapper, Subject> impl
     }
 
     // 辅助方法：定义虚拟大类
-    private List<SubjectDTO> createVirtualGroups() {
-        List<SubjectDTO> list = new ArrayList<>();
-        list.add(createVNode(-1, "政治"));
-        list.add(createVNode(-2, "英语"));
-        list.add(createVNode(-3, "数学"));
-        list.add(createVNode(-4, "408"));
-        return list;
-    }
-
     private SubjectDTO createVNode(Integer id, String name) {
         SubjectDTO dto = new SubjectDTO();
         dto.setId(id);

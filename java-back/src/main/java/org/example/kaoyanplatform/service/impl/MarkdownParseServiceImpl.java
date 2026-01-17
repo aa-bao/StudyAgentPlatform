@@ -312,8 +312,8 @@ public class MarkdownParseServiceImpl implements MarkdownParseService {
         String analysis;
         List<String> tags;
         String source;
-        List<String> images;
         boolean hasOptions;
+        List<String> images;
     }
 
     /**

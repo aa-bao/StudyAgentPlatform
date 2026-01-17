@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.zhipu.oapi.ClientV4;
-import com.zhipu.oapi.Constants;
 import com.zhipu.oapi.service.v4.model.*;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -337,12 +336,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         if (content == null || content.trim().isEmpty()) {
             return false;
         }
-
-        // 计算内容的MD5
-        String contentHash = DigestUtils.md5Hex(content.getBytes(StandardCharsets.UTF_8));
-
-        // 查询是否存在相同hash的题目（这里需要在Question实体添加contentHash字段，或者使用LIKE模糊匹配）
-        // 暂时使用模糊匹配
+        
         QueryWrapper<Question> wrapper = new QueryWrapper<>();
         wrapper.eq("content", content);
         wrapper.last("LIMIT 1");

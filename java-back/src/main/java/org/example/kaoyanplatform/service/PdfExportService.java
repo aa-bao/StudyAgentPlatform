@@ -1,6 +1,5 @@
 package org.example.kaoyanplatform.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.example.kaoyanplatform.entity.Question;
 import org.example.kaoyanplatform.entity.Subject;
 import org.example.kaoyanplatform.entity.Book;
@@ -8,13 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * PDF导出服务

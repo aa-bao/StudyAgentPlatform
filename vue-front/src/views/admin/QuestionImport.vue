@@ -67,7 +67,7 @@
                         </el-form-item>
 
                         <!-- 科目选择 -->
-                        <el-form-item label="选择科目">
+                        <el-form-item label="选择科目" required>
                             <el-tree-select
                                 v-model="importForm.subjectIds"
                                 :data="subjectTree"
@@ -76,7 +76,7 @@
                                 collapse-tags
                                 collapse-tags-tooltip
                                 clearable
-                                placeholder="请选择科目（可多选）"
+                                placeholder="请选择科目（至少选择一个，可多选）"
                                 check-strictly
                                 filterable
                                 style="width: 100%"
@@ -96,6 +96,7 @@
                                     </div>
                                 </template>
                             </el-tree-select>
+                            <span class="form-item-tip">必填项：请至少选择一个科目用于题目分类</span>
                         </el-form-item>
 
                         <el-form-item label="去重检查">
@@ -519,6 +520,12 @@ const selectedCount = computed(() => {
 const canGoNext = computed(() => {
     if (currentStep.value === 0) {
         // 验证第一步：习题册和科目
+        // 科目必填
+        if (!importForm.value.subjectIds || importForm.value.subjectIds.length === 0) {
+            return false
+        }
+
+        // 习题册验证
         if (importForm.value.bookMode === 'existing') {
             return importForm.value.bookId !== null
         } else if (importForm.value.bookMode === 'new') {
@@ -608,9 +615,8 @@ const parseJSONFile = async (file) => {
 
         // 处理题目数据 - 修复解析问题
         parsedQuestions.value = json.questions.map((q, index) => {
-            // 直接使用原始内容，不做任何清理
-            // 因为数据清理应该在后端完成，前端只负责展示
-            let content = q.content || ''
+            // 兼容两种字段名: content 和 question
+            let content = q.content || q.question || ''
 
             // 只移除明显的格式错误：题干开头如果是单个选项前缀（A. B. C. D.）
             // 使用更精确的正则，只匹配单个字母加点
@@ -663,6 +669,13 @@ const prevStep = () => {
 
 // 确认导入
 const confirmImport = async () => {
+    // 验证科目ID
+    if (!importForm.value.subjectIds || importForm.value.subjectIds.length === 0) {
+        ElMessage.warning('请至少选择一个科目')
+        currentStep.value = 0
+        return
+    }
+
     if (selectedCount.value === 0) {
         ElMessage.warning('请至少选择一道题目')
         return
@@ -871,26 +884,41 @@ onMounted(() => {
     padding: 20px;
 }
 
-.import-card {
-    .card-header {
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.text-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 4px;
+}    
 
-        .text-header {
-            .title-text {
-                font-size: 18px;
-                font-weight: 600;
-                color: #303133;
-            }
+.title-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2f3d;
+    position: relative;
+    padding-left: 12px;
+}
 
-            .header-desc {
-                margin-top: 4px;
-                font-size: 14px;
-                color: #909399;
-            }
-        }
-    }
+.header-desc {
+    font-size: 13px;
+    color: #909399;
+}
+    
+
+.title-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 18px;
+    background: #409eff;
+    border-radius: 2px;
 }
 
 .steps-container {

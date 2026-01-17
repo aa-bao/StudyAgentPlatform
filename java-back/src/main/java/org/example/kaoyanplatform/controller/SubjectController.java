@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.kaoyanplatform.common.Result;
 import org.example.kaoyanplatform.constant.SubjectLevelConstants;
 import org.example.kaoyanplatform.entity.Subject;
-import org.example.kaoyanplatform.entity.dto.SubjectDTO;
 import org.example.kaoyanplatform.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

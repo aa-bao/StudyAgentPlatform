@@ -1,7 +1,6 @@
 package org.example.kaoyanplatform.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
