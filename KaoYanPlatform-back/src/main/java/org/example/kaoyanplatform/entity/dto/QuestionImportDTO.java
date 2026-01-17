@@ -31,6 +31,9 @@ public class QuestionImportDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class QuestionImportItem {
+        /** 题号（可选，用于试卷导入时的题目排序） */
+        private Integer questionNumber;
+
         /** 题目类型: 1-单选, 2-多选, 3-填空, 4-简答 */
         private Integer type;
 

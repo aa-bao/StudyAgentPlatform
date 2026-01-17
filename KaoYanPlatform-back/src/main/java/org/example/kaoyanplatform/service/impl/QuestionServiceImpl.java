@@ -36,6 +36,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.codec.digest.DigestUtils;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * 题目Service实现类
@@ -327,5 +330,45 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         } else {
             throw new RuntimeException("GLM 识别失败: " + response.getMsg());
         }
+    }
+
+    @Override
+    public boolean isQuestionExist(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return false;
+        }
+
+        // 计算内容的MD5
+        String contentHash = DigestUtils.md5Hex(content.getBytes(StandardCharsets.UTF_8));
+
+        // 查询是否存在相同hash的题目（这里需要在Question实体添加contentHash字段，或者使用LIKE模糊匹配）
+        // 暂时使用模糊匹配
+        QueryWrapper<Question> wrapper = new QueryWrapper<>();
+        wrapper.eq("content", content);
+        wrapper.last("LIMIT 1");
+
+        return count(wrapper) > 0;
+    }
+
+    @Override
+    public List<Question> findSimilarQuestions(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 提取关键词进行模糊匹配
+        // 去除空格、换行等
+        String normalizedContent = content.replaceAll("\\s+", "").trim();
+
+        // 取前50个字符作为关键词
+        String keyword = normalizedContent.length() > 50
+                ? normalizedContent.substring(0, 50)
+                : normalizedContent;
+
+        QueryWrapper<Question> wrapper = new QueryWrapper<>();
+        wrapper.like("content", keyword);
+        wrapper.last("LIMIT 10");
+
+        return list(wrapper);
     }
 }

@@ -117,7 +117,7 @@ const routes = [
         component: () => import('@/views/admin/UserProgressMonitor.vue')
       },
       {
-        // 题目批量导入
+        // 题目批量导入（JSON文件）
         path: 'question-import',
         component: () => import('@/views/admin/QuestionImport.vue')
       },

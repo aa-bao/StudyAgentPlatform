@@ -3092,3 +3092,159 @@ onMounted(() => {
 
 **文档更新日期**: 2026-01-11
 **更新内容**: 新增第15章 - 未完成考试强制提醒功能文档，包含功能特性、API接口、前后端实现、交互流程和技术要点
+
+---
+
+## 16. 题目批量导入功能
+
+### 16.1 功能概述
+
+题目批量导入功能允许管理员通过上传 JSON 文件，快速将大量题目导入到题库中。该功能支持：
+
+- **文件上传**: 支持 .json 格式文件，最大 10MB
+- **实时解析**: 上传后立即解析 JSON 内容，预览所有题目
+- **智能去重**: 自动检测并跳过与库中重复的题目
+- **在线编辑**: 导入前可在线编辑题目内容
+- **选择性导入**: 支持选择部分题目导入
+- **灵活关联**: 支持导入到现有习题册或新建习题册/试卷
+
+### 16.2 从PDF到JSON的转换流程
+
+#### 16.2.1 推荐方案：使用LLM处理（MinerU + 智谱AI）
+
+由于从PDF提取的Markdown格式往往混乱，使用LLM（大语言模型）处理比Python脚本更灵活准确。
+
+**步骤1: 使用MinerU提取PDF为Markdown**
+
+```bash
+# 安装MinerU (参考官方文档)
+# 提取PDF到Markdown
+minerU_pdf_to_markdown input.pdf -o output_dir
+```
+
+**步骤2: 使用LLM转换为JSON**
+
+项目提供了Python脚本 `ExtractQuestionFromPDF/process_md_with_llm.py`：
+
+```bash
+cd ExtractQuestionFromPDF
+
+# 安装依赖
+pip install zhipuai
+
+# 配置API Key (编辑 config.py)
+ZHIPU_API_KEY = "your_api_key_here"
+
+# 单文件处理
+python process_md_with_llm.py
+
+# 批量处理整个目录
+python process_md_with_llm.py --batch
+```
+
+**优势**：
+- ✅ LLM能理解混乱的格式
+- ✅ 自动提取题目、答案、解析
+- ✅ 支持图片处理（转为Base64）
+- ✅ 识别题目类型
+- ✅ 比正则表达式更灵活
+
+#### 16.2.2 JSON格式规范（支持图片）
+
+**基本格式**:
+```json
+{
+  "questions": [
+    {
+      "type": 1,
+      "content": "题干内容，[图片:img_0]如适用",
+      "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
+      "answer": "A",
+      "analysis": "解析内容",
+      "tags": ["标签1", "标签2"]
+    }
+  ],
+  "images": [
+    {
+      "id": "img_0",
+      "filename": "c5f6459ba2900a7f.jpg",
+      "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAA..."
+    }
+  ]
+}
+```
+
+**字段说明**:
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `questions` | Array | ✅ | 题目数组 |
+| `type` | Integer | ✅ | 题目类型：1-单选, 2-多选, 3-填空, 4-简答 |
+| `content` | String | ✅ | 题干内容，可用`[图片:img_x]`引用图片 |
+| `options` | Array<String> | ⚠️ | 选项数组，选择题必填 |
+| `answer` | String | ✅ | 正确答案 |
+| `analysis` | String | ❌ | 题目解析 |
+| `tags` | Array<String> | ❌ | 题目标签 |
+| `images` | Array | ❌ | 图片数组（当题目包含图片时） |
+| `images[].id` | String | ✅ | 图片ID，如`img_0` |
+| `images[].filename` | String | ✅ | 原始文件名 |
+| `images[].base64` | String | ✅ | Base64编码的图片数据 |
+
+#### 16.2.3 图片处理方案
+
+**方案对比**：
+
+| 方案 | 优点 | 缺点 | 推荐度 |
+|------|------|------|--------|
+| Base64嵌入JSON | 简单，单文件 | JSON文件大 | ⭐⭐⭐ |
+| 上传到服务器 | 节省空间 | 需额外接口 | ⭐⭐⭐⭐⭐ |
+| 保持相对路径 | 文件小 | 需打包images文件夹 | ⭐⭐ |
+
+**当前实现**：前端支持Base64嵌入方案，题目内容中使用`[图片:img_0]`标记，前端自动渲染为图片。
+
+### 16.3 导入模式
+
+#### 16.3.1 现有习题册模式
+- 选择已存在的习题册
+- 题目自动关联到该习题册
+
+#### 16.3.2 新建习题册/试卷模式
+- 输入新习题册或试卷名称
+- 选择类型：习题册(1) 或 试卷(2)
+- 系统自动创建
+
+#### 16.3.3 暂不选择模式
+- 题目先导入到题库，不关联习题册
+- 后续可在题目管理中手动关联
+
+### 16.4 API 接口
+
+**导入题目**: `POST /question/import`
+
+**请求体**:
+```json
+{
+  "bookId": 1,
+  "newBookName": "2024真题",
+  "newBookType": 1,
+  "subjectIds": [1, 2],
+  "checkDuplicate": true,
+  "questions": [...]
+}
+```
+
+### 16.5 相关文件清单
+
+**前端文件**:
+- `KaoYanPlatform-front/src/views/admin/QuestionImport.vue`
+- `KaoYanPlatform-front/src/api/questionImportExport.js`
+
+**后端文件**:
+- `KaoYanPlatform-back/src/main/java/org/example/kaoyanplatform/controller/QuestionController.java`
+- `KaoYanPlatform-back/src/main/java/org/example/kaoyanplatform/service/QuestionService.java`
+- `KaoYanPlatform-back/src/main/java/org/example/kaoyanplatform/entity/dto/QuestionImportDTO.java`
+
+---
+
+**文档更新日期**: 2026-01-17
+**更新内容**: 新增第16章 - 题目批量导入功能文档

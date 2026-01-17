@@ -58,5 +58,18 @@ public interface QuestionService extends IService<Question> {
      */
     LLMQuestionOutputDTO recognizeImageToText(MultipartFile file) throws Exception;
 
+    /**
+     * 检查题目是否已存在（基于内容MD5去重）
+     * @param content 题干内容
+     * @return 是否存在
+     */
+    boolean isQuestionExist(String content);
+
+    /**
+     * 根据内容查找相似题目（模糊匹配）
+     * @param content 题干内容
+     * @return 相似题目列表
+     */
+    List<Question> findSimilarQuestions(String content);
 
 }

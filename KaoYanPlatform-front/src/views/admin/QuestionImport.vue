@@ -4,7 +4,7 @@
             <template #header>
                 <div class="card-header">
                     <div class="text-header">
-                        <span class="title-text">JSON 批量导入题目</span>
+                        <span class="title-text">JSON 文件批量导入题目</span>
                         <div class="header-desc">上传 JSON 文件批量导入题目到题库</div>
                     </div>
                     <el-button type="primary" icon="QuestionFilled" @click="showTutorial = true">
@@ -16,15 +16,25 @@
             <el-steps :active="currentStep" finish-status="success" align-center class="steps-container">
                 <el-step title="选择习题册和科目" />
                 <el-step title="上传JSON文件" />
+                <el-step title="预览题目" />
                 <el-step title="确认导入" />
-                <el-step title="完成" />
             </el-steps>
 
             <div class="step-content">
                 <!-- 步骤1: 选择习题册和科目 -->
                 <div v-if="currentStep === 0" class="step-panel">
-                    <el-form :model="importForm" label-width="120px" class="import-form">
-                        <el-form-item label="选择习题册">
+                    <el-form :model="importForm" label-width="140px" class="import-form">
+                        <!-- 习题册选择 -->
+                        <el-form-item label="习题册/试卷">
+                            <el-radio-group v-model="importForm.bookMode" @change="handleBookModeChange">
+                                <el-radio value="existing">选择现有习题册</el-radio>
+                                <el-radio value="new">新建习题册/试卷</el-radio>
+                                <el-radio value="skip">暂不选择</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+
+                        <!-- 现有习题册 -->
+                        <el-form-item v-if="importForm.bookMode === 'existing'" label="选择习题册">
                             <el-select
                                 v-model="importForm.bookId"
                                 placeholder="请选择习题册"
@@ -40,6 +50,23 @@
                             </el-select>
                         </el-form-item>
 
+                        <!-- 新建习题册 -->
+                        <el-form-item v-if="importForm.bookMode === 'new'" label="习题册/试卷名称">
+                            <el-input
+                                v-model="importForm.newBookName"
+                                placeholder="请输入习题册或试卷名称"
+                                clearable
+                            />
+                        </el-form-item>
+
+                        <el-form-item v-if="importForm.bookMode === 'new'" label="类型">
+                            <el-radio-group v-model="importForm.newBookType">
+                                <el-radio :value="1">习题册</el-radio>
+                                <el-radio :value="2">试卷</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+
+                        <!-- 科目选择 -->
                         <el-form-item label="选择科目">
                             <el-tree-select
                                 v-model="importForm.subjectIds"
@@ -71,6 +98,15 @@
                             </el-tree-select>
                         </el-form-item>
 
+                        <el-form-item label="去重检查">
+                            <el-switch
+                                v-model="importForm.checkDuplicate"
+                                active-text="启用"
+                                inactive-text="禁用"
+                            />
+                            <span class="form-item-tip">启用后将跳过与库中重复的题目</span>
+                        </el-form-item>
+
                         <el-alert
                             title="提示"
                             type="info"
@@ -79,9 +115,9 @@
                             class="info-alert"
                         >
                             <template #default>
-                                <div>• 题目将导入到指定的习题册和科目中</div>
+                                <div>• 可以选择导入到现有习题册或新建习题册</div>
                                 <div>• 可以选择多个科目进行关联</div>
-                                <div>• JSON 文件中的题目将自动关联到选定的习题册和科目</div>
+                                <div>• 暂不选择习题册时，题目会先导入到题库，后续可以手动关联</div>
                             </template>
                         </el-alert>
                     </el-form>
@@ -89,115 +125,298 @@
 
                 <!-- 步骤2: 上传JSON文件 -->
                 <div v-if="currentStep === 1" class="step-panel">
-                    <el-upload
-                        ref="uploadRef"
-                        class="upload-area"
-                        drag
-                        :auto-upload="false"
-                        :on-change="handleFileChange"
-                        :limit="1"
-                        accept=".json"
-                        :file-list="fileList"
-                    >
-                        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-                        <div class="el-upload__text">
-                            将 JSON 文件拖到此处，或<em>点击上传</em>
-                        </div>
-                        <template #tip>
-                            <div class="el-upload__tip">
-                                只能上传 JSON 格式文件，且不超过 10MB
+                    <div v-if="!jsonFile" class="upload-container">
+                        <el-upload
+                            ref="uploadRef"
+                            class="upload-area"
+                            drag
+                            :auto-upload="false"
+                            :on-change="handleFileChange"
+                            :limit="1"
+                            accept=".json"
+                            :file-list="fileList"
+                        >
+                            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+                            <div class="el-upload__text">
+                                将 JSON 文件拖到此处，或<em>点击上传</em>
                             </div>
-                        </template>
-                    </el-upload>
+                            <template #tip>
+                                <div class="el-upload__tip">
+                                    只能上传 JSON 格式文件，且不超过 10MB
+                                </div>
+                            </template>
+                        </el-upload>
 
-                    <el-divider />
+                        <el-divider />
 
-                    <div v-if="jsonContent" class="json-preview">
-                        <div class="preview-header">
-                            <span>JSON 内容预览</span>
-                            <el-button
-                                type="primary"
-                                size="small"
-                                icon="Check"
-                                @click="validateJSON"
-                            >
-                                验证格式
-                            </el-button>
-                        </div>
-                        <el-input
-                            v-model="jsonContent"
-                            type="textarea"
-                            :rows="10"
-                            readonly
-                            class="json-textarea"
-                        />
-
-                        <div v-if="validationResult.valid" class="validation-success">
-                            <el-icon><SuccessFilled /></el-icon>
-                            <span>格式验证通过！共 {{ validationResult.count }} 道题目</span>
-                        </div>
-
-                        <div v-if="validationResult.error" class="validation-error">
-                            <el-icon><CircleCloseFilled /></el-icon>
-                            <span>{{ validationResult.error }}</span>
-                        </div>
+                        <el-alert
+                            title="JSON 格式要求"
+                            type="warning"
+                            :closable="false"
+                            show-icon
+                            class="format-alert"
+                        >
+                            <template #default>
+                                <pre class="json-example">{
+  "questions": [
+    {
+      "type": 1,
+      "content": "题干内容",
+      "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
+      "answer": "A",
+      "analysis": "解析内容",
+      "tags": ["标签1", "标签2"]
+    }
+  ]
+}</pre>
+                            </template>
+                        </el-alert>
                     </div>
 
-                    <el-alert
-                        title="JSON 格式要求"
-                        type="warning"
-                        :closable="false"
-                        show-icon
-                        class="format-alert"
-                    >
-                        <template #default>
-                            <pre class="json-example">{{ jsonFormatExample }}</pre>
-                        </template>
-                    </el-alert>
+                    <!-- 已上传文件 -->
+                    <div v-else class="file-uploaded">
+                        <el-card>
+                            <template #header>
+                                <div class="file-header">
+                                    <span>已上传文件</span>
+                                    <el-button type="danger" size="small" icon="Delete" @click="removeFile">
+                                        删除文件
+                                    </el-button>
+                                </div>
+                            </template>
+                            <div class="file-info">
+                                <el-icon><Document /></el-icon>
+                                <span class="file-name">{{ jsonFile.name }}</span>
+                                <el-tag type="success" size="small">已解析 {{ parsedQuestions.length }} 道题目</el-tag>
+                            </div>
+                        </el-card>
+                    </div>
                 </div>
 
-                <!-- 步骤3: 确认导入 -->
+                <!-- 步骤3: 预览题目 -->
                 <div v-if="currentStep === 2" class="step-panel">
-                    <el-descriptions title="导入信息确认" :column="1" border class="confirm-info">
-                        <el-descriptions-item label="习题册">
-                            {{ getBookName(importForm.bookId) }}
-                        </el-descriptions-item>
-                        <el-descriptions-item label="科目">
-                            {{ getSubjectNames(importForm.subjectIds) }}
-                        </el-descriptions-item>
-                        <el-descriptions-item label="题目数量">
-                            {{ validationResult.count }} 道题
-                        </el-descriptions-item>
-                        <el-descriptions-item label="文件名">
-                            {{ fileList[0]?.name }}
-                        </el-descriptions-item>
-                    </el-descriptions>
+                    <div v-if="loading" class="loading-container">
+                        <el-icon class="is-loading"><Loading /></el-icon>
+                        <span>正在解析 JSON 文件，请稍候...</span>
+                    </div>
 
-                    <el-divider />
+                    <div v-else-if="parsedQuestions.length === 0" class="empty-container">
+                        <el-empty description="暂无题目数据">
+                            <el-button type="primary" @click="currentStep = 1">重新上传文件</el-button>
+                        </el-empty>
+                    </div>
 
-                    <div class="question-preview">
-                        <h4>题目预览（前5题）</h4>
-                        <el-table :data="previewQuestions" stripe class="preview-table">
-                            <el-table-column prop="type" label="类型" width="100">
-                                <template #default="scope">
-                                    {{ getQuestionType(scope.row.type) }}
+                    <div v-else>
+                        <div class="preview-header">
+                            <span>题目预览 (共 {{ parsedQuestions.length }} 道题)</span>
+                            <div class="header-actions">
+                                <el-button
+                                    type="warning"
+                                    size="small"
+                                    icon="Edit"
+                                    @click="enableEditMode"
+                                    v-if="!editMode"
+                                >
+                                    编辑题目
+                                </el-button>
+                                <el-button
+                                    type="success"
+                                    size="small"
+                                    icon="Check"
+                                    @click="confirmImport"
+                                >
+                                    确认导入
+                                </el-button>
+                            </div>
+                        </div>
+
+                        <div class="questions-list">
+                            <el-card
+                                v-for="(question, index) in previewQuestions"
+                                :key="index"
+                                class="question-card"
+                                shadow="hover"
+                            >
+                                <template #header>
+                                    <div class="question-header">
+                                        <span class="question-number">第 {{ (currentPage - 1) * pageSize + index + 1 }} 题</span>
+                                        <div class="header-controls">
+                                            <el-tag :type="getTypeTagType(question.type)" size="small">
+                                                {{ getTypeName(question.type) }}
+                                            </el-tag>
+                                            <el-checkbox
+                                                v-model="question.selected"
+                                                :checked="selectedAll"
+                                                @change="handleSelectChange"
+                                            >
+                                                选中
+                                            </el-checkbox>
+                                        </div>
+                                    </div>
                                 </template>
-                            </el-table-column>
-                            <el-table-column prop="content" label="题目内容" show-overflow-tooltip />
-                            <el-table-column prop="answer" label="答案" width="100" />
-                        </el-table>
+
+                                <div class="question-content">
+                                    <!-- 编辑模式 -->
+                                    <div v-if="editMode" class="edit-mode">
+                                        <el-form :model="question" label-width="80px" size="small">
+                                            <el-form-item label="题目类型">
+                                                <el-select v-model="question.type">
+                                                    <el-option label="单选题" :value="1" />
+                                                    <el-option label="多选题" :value="2" />
+                                                    <el-option label="填空题" :value="3" />
+                                                    <el-option label="简答题" :value="4" />
+                                                </el-select>
+                                            </el-form-item>
+
+                                            <el-form-item label="题干">
+                                                <el-input
+                                                    v-model="question.content"
+                                                    type="textarea"
+                                                    :rows="3"
+                                                    placeholder="请输入题干"
+                                                />
+                                            </el-form-item>
+
+                                            <el-form-item label="选项" v-if="question.type <= 2">
+                                                <div v-for="(opt, optIdx) in question.options" :key="optIdx" class="option-edit">
+                                                    <el-input
+                                                        v-model="question.options[optIdx]"
+                                                        :placeholder="`选项 ${String.fromCharCode(65 + optIdx)}`"
+                                                    />
+                                                    <el-button
+                                                        type="danger"
+                                                        size="small"
+                                                        icon="Delete"
+                                                        @click="removeOption(question, optIdx)"
+                                                        circle
+                                                    />
+                                                </div>
+                                                <el-button
+                                                    type="primary"
+                                                    size="small"
+                                                    icon="Plus"
+                                                    @click="addOption(question)"
+                                                    v-if="question.options.length < 8"
+                                                >
+                                                    添加选项
+                                                </el-button>
+                                            </el-form-item>
+
+                                            <el-form-item label="答案">
+                                                <el-input
+                                                    v-model="question.answer"
+                                                    placeholder="单选填A/B/C/D，多选填AB/ABC等"
+                                                />
+                                            </el-form-item>
+
+                                            <el-form-item label="解析">
+                                                <el-input
+                                                    v-model="question.analysis"
+                                                    type="textarea"
+                                                    :rows="2"
+                                                    placeholder="请输入解析"
+                                                />
+                                            </el-form-item>
+
+                                            <el-form-item label="标签">
+                                                <el-input
+                                                    v-model="question.tagsStr"
+                                                    placeholder="用逗号分隔，如：数据结构,栈"
+                                                />
+                                            </el-form-item>
+                                        </el-form>
+                                    </div>
+
+                                    <!-- 预览模式 -->
+                                    <div v-else class="preview-mode">
+                                        <div class="content-text">
+                                            <strong>题干：</strong>
+                                            <div v-html="renderMarkdown(question.content)"></div>
+                                        </div>
+
+                                        <div v-if="question.options && question.options.length > 0" class="options-list">
+                                            <strong>选项：</strong>
+                                            <ul>
+                                                <li v-for="(option, optIndex) in question.options" :key="optIndex">
+                                                    {{ option }}
+                                                </li>
+                                            </ul>
+                                        </div>
+
+                                        <div class="answer-analysis">
+                                            <el-row :gutter="20">
+                                                <el-col :span="12">
+                                                    <div><strong>答案：</strong>{{ question.answer || '未填写' }}</div>
+                                                </el-col>
+                                                <el-col :span="12">
+                                                    <div><strong>解析：</strong>{{ question.analysis || '未填写' }}</div>
+                                                </el-col>
+                                            </el-row>
+                                        </div>
+
+                                        <div v-if="question.tags && question.tags.length > 0" class="tags-list">
+                                            <strong>标签：</strong>
+                                            <el-tag
+                                                v-for="(tag, tagIdx) in question.tags"
+                                                :key="tagIdx"
+                                                size="small"
+                                                style="margin-right: 5px;"
+                                            >
+                                                {{ tag }}
+                                            </el-tag>
+                                        </div>
+                                    </div>
+                                </div>
+                            </el-card>
+                        </div>
+
+                        <!-- 工具栏 -->
+                        <div class="toolbar">
+                            <el-checkbox v-model="selectedAll" @change="handleSelectAll">
+                                全选当前页
+                            </el-checkbox>
+                            <el-tag type="info">已选 {{ selectedCount }} 题</el-tag>
+                        </div>
+
+                        <el-pagination
+                            v-if="parsedQuestions.length > pageSize"
+                            :current-page="currentPage"
+                            :page-size="pageSize"
+                            :total="parsedQuestions.length"
+                            layout="prev, pager, next"
+                            class="pagination"
+                            @current-change="handlePageChange"
+                        />
                     </div>
                 </div>
 
-                <!-- 步骤4: 完成 -->
-                <div v-if="currentStep === 3" class="step-panel result-panel">
+                <!-- 步骤4: 完成导入 -->
+                <div v-if="currentStep === 3" class="step-panel">
                     <el-result
                         :icon="importResult.success ? 'success' : 'error'"
-                        :title="importResult.title"
-                        :sub-title="importResult.message"
+                        :title="importResult.success ? '导入完成！' : '导入失败'"
                     >
+                        <template #sub-title>
+                            <div class="result-summary">
+                                <p v-if="importResult.summary">{{ importResult.summary }}</p>
+                                <div v-if="importResult.details" class="result-details">
+                                    <el-descriptions :column="1" border>
+                                        <el-descriptions-item label="成功导入">
+                                            {{ importResult.details.success }} 题
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="跳过重复">
+                                            {{ importResult.details.duplicate }} 题
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="导入失败">
+                                            {{ importResult.details.failed }} 题
+                                        </el-descriptions-item>
+                                    </el-descriptions>
+                                </div>
+                            </div>
+                        </template>
                         <template #extra>
                             <el-button type="primary" @click="resetImport">继续导入</el-button>
+                            <el-button @click="$router.push('/admin/questions-manage')">查看题目列表</el-button>
                         </template>
                     </el-result>
                 </div>
@@ -219,16 +438,20 @@
                     v-if="currentStep === 2"
                     type="primary"
                     :loading="importing"
-                    icon="Upload"
-                    @click="startImport"
+                    @click="confirmImport"
                 >
-                    开始导入
+                    确认导入 ({{ selectedCount }} 题)
                 </el-button>
             </div>
         </el-card>
 
-        <!-- 教程对话框 -->
-        <el-dialog v-model="showTutorial" title="JSON 导入教程" width="900px" destroy-on-close>
+        <!-- 教程弹窗 -->
+        <el-dialog
+            v-model="showTutorial"
+            title="JSON 导入教程"
+            width="800px"
+            :close-on-click-modal="false"
+        >
             <ImportTutorial @close="showTutorial = false" />
         </el-dialog>
     </div>
@@ -236,74 +459,78 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { UploadFilled, SuccessFilled, CircleCloseFilled, QuestionFilled, Collection, Document } from '@element-plus/icons-vue'
-import { importQuestions, getSubjectTree, getAllBooks } from '@/api/questionImportExport'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+    UploadFilled,
+    Collection,
+    Document,
+    Loading,
+    Edit,
+    Delete,
+    Plus
+} from '@element-plus/icons-vue'
+import { getAllBooks, getSubjectTree, importQuestions } from '@/api/questionImportExport'
 import ImportTutorial from './ImportTutorial.vue'
 
-// 步骤控制
+// 数据
 const currentStep = ref(0)
 const showTutorial = ref(false)
+const loading = ref(false)
+const importing = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
+const editMode = ref(false)
+const selectedAll = ref(false)
 
-// 表单数据
 const importForm = ref({
+    bookMode: 'existing', // existing, new, skip
     bookId: null,
-    subjectIds: []
+    newBookName: '',
+    newBookType: 1, // 1=习题册, 2=试卷
+    subjectIds: [],
+    checkDuplicate: true
 })
 
-// 数据
 const allBooks = ref([])
 const subjectTree = ref([])
 const fileList = ref([])
-const jsonContent = ref('')
+const jsonFile = ref(null)
 const parsedQuestions = ref([])
-const importing = ref(false)
 
-// 验证结果
-const validationResult = ref({
-    valid: false,
-    count: 0,
-    error: ''
-})
-
-// 导入结果
 const importResult = ref({
     success: false,
-    title: '',
-    message: ''
+    summary: '',
+    details: null
 })
 
-// JSON格式示例
-const jsonFormatExample = `{
-  "questions": [
-    {
-      "type": 1,
-      "content": "设函数 f(x) = x^3 - 3x + 1，求 f'(x)",
-      "options": [
-        "A. 3x^2 - 3",
-        "B. 3x^2 + 3",
-        "C. x^2 - 3",
-        "D. x^2 + 3"
-      ],
-      "answer": "A",
-      "analysis": "根据求导法则，f'(x) = 3x^2 - 3",
-      "tags": ["导数", "基础题"]
-    }
-  ]
-}`
-
-// 预览题目（前5题）
+// 预览题目（分页）
 const previewQuestions = computed(() => {
-    return parsedQuestions.value.slice(0, 5)
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    return parsedQuestions.value.slice(start, end)
+})
+
+// 已选题目数量
+const selectedCount = computed(() => {
+    return parsedQuestions.value.filter(q => q.selected).length
 })
 
 // 是否可以进入下一步
 const canGoNext = computed(() => {
     if (currentStep.value === 0) {
-        return importForm.value.bookId && importForm.value.subjectIds.length > 0
+        // 验证第一步：习题册和科目
+        if (importForm.value.bookMode === 'existing') {
+            return importForm.value.bookId !== null
+        } else if (importForm.value.bookMode === 'new') {
+            return importForm.value.newBookName.trim() !== ''
+        }
+        return true // skip 模式
     }
     if (currentStep.value === 1) {
-        return validationResult.value.valid
+        return jsonFile.value !== null && parsedQuestions.value.length > 0
+    }
+    if (currentStep.value === 2) {
+        return selectedCount.value > 0
     }
     return true
 })
@@ -323,84 +550,108 @@ const loadData = async () => {
         if (subjectsRes.code === 200) {
             subjectTree.value = subjectsRes.data || []
         }
-    } catch (e) {
-        console.error('加载数据失败', e)
+    } catch (error) {
         ElMessage.error('加载数据失败')
     }
 }
 
-// 文件变更处理
-const handleFileChange = (file) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-        jsonContent.value = e.target.result
-    }
-    reader.readAsText(file.raw)
-
-    // 重置验证结果
-    validationResult.value = {
-        valid: false,
-        count: 0,
-        error: ''
-    }
-    parsedQuestions.value = []
+// 习题册模式变化
+const handleBookModeChange = (mode) => {
+    importForm.value.bookId = null
+    importForm.value.newBookName = ''
+    importForm.value.newBookType = 1
 }
 
-// 验证JSON格式
-const validateJSON = () => {
+// 处理文件变化
+const handleFileChange = async (file) => {
+    if (!file.raw.name.endsWith('.json')) {
+        ElMessage.error('只能上传 JSON 格式文件')
+        return false
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        ElMessage.error('文件大小不能超过 10MB')
+        return false
+    }
+
+    jsonFile.value = file.raw
+    fileList.value = [file]
+
+    // 立即解析 JSON
+    await parseJSONFile(file.raw)
+}
+
+// 删除文件
+const removeFile = () => {
+    ElMessageBox.confirm('确定要删除已上传的文件吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+    }).then(() => {
+        jsonFile.value = null
+        fileList.value = []
+        parsedQuestions.value = []
+        ElMessage.success('文件已删除')
+    }).catch(() => {})
+}
+
+// 解析 JSON 文件
+const parseJSONFile = async (file) => {
+    loading.value = true
     try {
-        const data = JSON.parse(jsonContent.value)
+        const text = await file.text()
+        const json = JSON.parse(text)
 
-        if (!data.questions || !Array.isArray(data.questions)) {
-            throw new Error('JSON 缺少 questions 数组')
+        if (!json.questions || !Array.isArray(json.questions)) {
+            throw new Error('JSON 格式错误：缺少 questions 数组')
         }
 
-        if (data.questions.length === 0) {
-            throw new Error('questions 数组为空')
-        }
+        // 处理题目数据 - 修复解析问题
+        parsedQuestions.value = json.questions.map((q, index) => {
+            // 直接使用原始内容，不做任何清理
+            // 因为数据清理应该在后端完成，前端只负责展示
+            let content = q.content || ''
 
-        // 验证每个题目字段
-        for (let i = 0; i < data.questions.length; i++) {
-            const q = data.questions[i]
+            // 只移除明显的格式错误：题干开头如果是单个选项前缀（A. B. C. D.）
+            // 使用更精确的正则，只匹配单个字母加点
+            content = content.replace(/^[A-D]\.\s*/, '')
 
-            if (!q.type || q.type < 1 || q.type > 10) {
-                throw new Error(`第 ${i + 1} 题的 type 字段无效（应为 1-10 的整数）`)
+            return {
+                ...q,
+                content: content.trim(),
+                selected: true,
+                tagsStr: q.tags ? q.tags.join(', ') : '',
+                options: q.options || [],
+                answer: q.answer || '',
+                analysis: q.analysis || ''
             }
+        }).filter(q => {
+            // 过滤掉明显无效的题目
+            return q.content && q.content.length > 0
+        })
 
-            if (!q.content || typeof q.content !== 'string') {
-                throw new Error(`第 ${i + 1} 题缺少 content 字段`)
-            }
-
-            // 选择题必须有 options
-            if ((q.type === 1 || q.type === 2) && (!q.options || !Array.isArray(q.options))) {
-                throw new Error(`第 ${i + 1} 题是选择题，必须包含 options 数组`)
-            }
+        // 保存图片信息（如果有的话）
+        if (json.images && Array.isArray(json.images)) {
+            parsedQuestions.value.images = json.images
+        } else {
+            parsedQuestions.value.images = []
         }
 
-        // 验证通过
-        parsedQuestions.value = data.questions
-        validationResult.value = {
-            valid: true,
-            count: data.questions.length,
-            error: ''
-        }
-
-        ElMessage.success(`格式验证通过！共 ${data.questions.length} 道题目`)
-    } catch (e) {
-        validationResult.value = {
-            valid: false,
-            count: 0,
-            error: e.message
-        }
-        ElMessage.error('JSON 格式错误：' + e.message)
+        ElMessage.success(`成功解析 ${parsedQuestions.value.length} 道题目`)
+    } catch (error) {
+        ElMessage.error('解析 JSON 失败：' + error.message)
+        parsedQuestions.value = []
+        jsonFile.value = null
+        fileList.value = []
+    } finally {
+        loading.value = false
     }
 }
 
 // 下一步
 const nextStep = () => {
-    if (currentStep.value === 1 && !validationResult.value.valid) {
-        ElMessage.warning('请先验证 JSON 格式')
-        return
+    if (currentStep.value === 2 && editMode.value) {
+        saveEdits()
     }
     currentStep.value++
 }
@@ -410,41 +661,62 @@ const prevStep = () => {
     currentStep.value--
 }
 
-// 开始导入
-const startImport = async () => {
-    importing.value = true
+// 确认导入
+const confirmImport = async () => {
+    if (selectedCount.value === 0) {
+        ElMessage.warning('请至少选择一道题目')
+        return
+    }
 
+    importing.value = true
     try {
-        const res = await importQuestions({
-            bookId: importForm.value.bookId,
+        // 过滤选中的题目
+        const selectedQuestions = parsedQuestions.value
+            .filter(q => q.selected)
+            .map(q => ({
+                ...q,
+                tags: q.tagsStr ? q.tagsStr.split(',').map(t => t.trim()).filter(t => t) : q.tags || []
+            }))
+
+        const importData = {
+            bookId: importForm.value.bookMode === 'existing' ? importForm.value.bookId : null,
+            newBookName: importForm.value.bookMode === 'new' ? importForm.value.newBookName : null,
+            newBookType: importForm.value.bookMode === 'new' ? importForm.value.newBookType : null,
             subjectIds: importForm.value.subjectIds,
-            questions: parsedQuestions.value
-        })
+            checkDuplicate: importForm.value.checkDuplicate,
+            questions: selectedQuestions
+        }
+
+        const res = await importQuestions(importData)
 
         if (res.code === 200) {
             importResult.value = {
                 success: true,
-                title: '导入成功',
-                message: res.data
+                summary: res.data,
+                details: parseImportResult(res.data)
             }
             currentStep.value = 3
+            ElMessage.success('导入成功！')
         } else {
-            importResult.value = {
-                success: false,
-                title: '导入失败',
-                message: res.msg || '未知错误'
-            }
-            currentStep.value = 3
+            ElMessage.error(res.message || '导入失败')
         }
-    } catch (e) {
-        importResult.value = {
-            success: false,
-            title: '导入失败',
-            message: e.message || '网络错误'
-        }
-        currentStep.value = 3
+    } catch (error) {
+        ElMessage.error('导入失败：' + error.message)
     } finally {
         importing.value = false
+    }
+}
+
+// 解析导入结果
+const parseImportResult = (message) => {
+    const successMatch = message.match(/成功[：:]\s*(\d+)/)
+    const duplicateMatch = message.match(/跳过重复[：:]\s*(\d+)/)
+    const failedMatch = message.match(/失败[：:]\s*(\d+)/)
+
+    return {
+        success: successMatch ? parseInt(successMatch[1]) : 0,
+        duplicate: duplicateMatch ? parseInt(duplicateMatch[1]) : 0,
+        failed: failedMatch ? parseInt(failedMatch[1]) : 0
     }
 }
 
@@ -452,47 +724,89 @@ const startImport = async () => {
 const resetImport = () => {
     currentStep.value = 0
     importForm.value = {
+        bookMode: 'existing',
         bookId: null,
-        subjectIds: []
+        newBookName: '',
+        newBookType: 1,
+        subjectIds: [],
+        checkDuplicate: true
     }
     fileList.value = []
-    jsonContent.value = ''
+    jsonFile.value = null
     parsedQuestions.value = []
-    validationResult.value = {
-        valid: false,
-        count: 0,
-        error: ''
+    importResult.value = {
+        success: false,
+        summary: '',
+        details: null
+    }
+    currentPage.value = 1
+    editMode.value = false
+    selectedAll.value = false
+}
+
+// 分页变化
+const handlePageChange = (page) => {
+    currentPage.value = page
+    selectedAll.value = false
+}
+
+// 全选/取消全选当前页
+const handleSelectAll = (checked) => {
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    for (let i = start; i < end && i < parsedQuestions.value.length; i++) {
+        parsedQuestions.value[i].selected = checked
     }
 }
 
-// 获取习题册名称
-const getBookName = (bookId) => {
-    const book = allBooks.value.find(b => b.id === bookId)
-    return book ? book.name : '未选择'
-}
-
-// 获取科目名称
-const getSubjectNames = (subjectIds) => {
-    if (!subjectIds || subjectIds.length === 0) return '未选择'
-
-    const findSubjectName = (nodes, targetId) => {
-        for (const node of nodes) {
-            if (node.id === targetId) return node.name
-            if (node.children) {
-                const found = findSubjectName(node.children, targetId)
-                if (found) return found
-            }
+// 单个题目选择变化
+const handleSelectChange = () => {
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    selectedAll.value = true
+    for (let i = start; i < end && i < parsedQuestions.value.length; i++) {
+        if (!parsedQuestions.value[i].selected) {
+            selectedAll.value = false
+            break
         }
-        return null
     }
+}
 
-    return subjectIds
-        .map(id => findSubjectName(subjectTree.value, id) || `ID:${id}`)
-        .join('、')
+// 启用编辑模式
+const enableEditMode = () => {
+    editMode.value = true
+    ElMessage.info('进入编辑模式，修改后点击"确认导入"保存')
+}
+
+// 保存编辑
+const saveEdits = () => {
+    parsedQuestions.value.forEach(q => {
+        if (q.tagsStr) {
+            q.tags = q.tagsStr.split(',').map(t => t.trim()).filter(t => t)
+        }
+    })
+    editMode.value = false
+    ElMessage.success('修改已保存')
+}
+
+// 添加选项
+const addOption = (question) => {
+    if (question.options.length < 8) {
+        question.options.push('')
+    }
+}
+
+// 删除选项
+const removeOption = (question, index) => {
+    if (question.options.length > 2) {
+        question.options.splice(index, 1)
+    } else {
+        ElMessage.warning('至少保留2个选项')
+    }
 }
 
 // 获取题目类型名称
-const getQuestionType = (type) => {
+const getTypeName = (type) => {
     const types = {
         1: '单选题',
         2: '多选题',
@@ -502,61 +816,90 @@ const getQuestionType = (type) => {
     return types[type] || '未知'
 }
 
+// 获取题目类型标签颜色
+const getTypeTagType = (type) => {
+    const types = {
+        1: 'success',
+        2: 'warning',
+        3: 'info',
+        4: 'danger'
+    }
+    return types[type] || ''
+}
+
+// 渲染 Markdown，支持图片显示
+const renderMarkdown = (content) => {
+    if (!content) return ''
+
+    // 处理图片标记 [图片:img_0] -> <img src="...">
+    let rendered = content.replace(/\[图片:(\w+)\]/g, (match, imageId) => {
+        // 查找对应的图片数据
+        const image = parsedQuestions.value.images?.find(img => img.id === imageId)
+        if (image && image.base64) {
+            return `<img src="${image.base64}" alt="${image.filename}" style="max-width: 100%; margin: 10px 0; border-radius: 4px;" />`
+        }
+        return match // 保留原标记
+    })
+
+    // 处理已有的markdown图片语法
+    rendered = rendered.replace(/!\[\]\(([^)]+)\)/g, (match, path) => {
+        // 如果是相对路径，尝试从images数组中查找
+        const filename = path.split('/').pop()
+        const image = parsedQuestions.value.images?.find(img => img.filename === filename)
+        if (image && image.base64) {
+            return `<img src="${image.base64}" alt="${filename}" style="max-width: 100%; margin: 10px 0; border-radius: 4px;" />`
+        }
+        return match
+    })
+
+    // 加粗
+    rendered = rendered.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+
+    // 换行
+    rendered = rendered.replace(/\n/g, '<br>')
+
+    return rendered
+}
+
 onMounted(() => {
     loadData()
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.admin-container {
+    padding: 20px;
+}
+
 .import-card {
-    border-radius: 12px;
-    border: 1px solid #e8ecef;
-}
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
 
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+        .text-header {
+            .title-text {
+                font-size: 18px;
+                font-weight: 600;
+                color: #303133;
+            }
 
-.text-header {
-    position: relative;
-    padding-left: 14px;
-}
-
-.title-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f2f3d;
-    position: relative;
-    padding-left: 12px;
-}
-
-.title-text::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 18px;
-    background: #409eff;
-    border-radius: 2px;
-}
-
-.header-desc {
-    font-size: 13px;
-    color: #909399;
-    margin-top: 4px;
+            .header-desc {
+                margin-top: 4px;
+                font-size: 14px;
+                color: #909399;
+            }
+        }
+    }
 }
 
 .steps-container {
-    margin: 40px 0;
+    margin: 30px 0;
 }
 
 .step-content {
     min-height: 400px;
-    padding: 20px 0;
+    margin-top: 30px;
 }
 
 .step-panel {
@@ -564,127 +907,231 @@ onMounted(() => {
 }
 
 .import-form {
-    max-width: 600px;
-    margin: 0 auto;
+    .info-alert {
+        margin-top: 20px;
+    }
+
+    .form-item-tip {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #909399;
+    }
 }
 
-.info-alert {
-    margin-top: 20px;
+.upload-container {
+    margin: 20px 0;
 }
 
 .upload-area {
-    margin-bottom: 20px;
+    margin: 20px 0;
 }
 
-.json-preview {
-    margin: 20px 0;
+.file-uploaded {
+    .file-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 16px;
+
+        .file-name {
+            flex: 1;
+            font-weight: 500;
+        }
+    }
+}
+
+.format-alert {
+    pre {
+        margin: 10px 0 0 0;
+        padding: 15px;
+        background-color: #f5f7fa;
+        border-radius: 4px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #606266;
+        font-family: 'Courier New', monospace;
+    }
+}
+
+.json-example {
+    margin: 10px 0 0 0;
+    padding: 15px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #606266;
+    font-family: 'Courier New', monospace;
+}
+
+.loading-container,
+.empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    font-size: 16px;
+    color: #606266;
+
+    .el-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #409eff;
+    }
 }
 
 .preview-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-}
-
-.json-textarea {
-    font-family: 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-}
-
-.validation-success {
-    margin-top: 10px;
-    padding: 10px;
-    background: #f0f9ff;
-    border-left: 3px solid #67c23a;
-    border-radius: 4px;
-    color: #67c23a;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.validation-error {
-    margin-top: 10px;
-    padding: 10px;
-    background: #fef0f0;
-    border-left: 3px solid #f56c6c;
-    border-radius: 4px;
-    color: #f56c6c;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.format-alert {
-    margin-top: 20px;
-}
-
-.json-example {
-    margin: 0;
-    padding: 15px;
-    background: #f5f7fa;
-    border-radius: 4px;
-    font-family: 'Monaco', 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    overflow-x: auto;
-}
-
-.confirm-info {
     margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+    font-weight: 600;
+
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
 }
 
-.question-preview h4 {
-    margin-bottom: 15px;
-    color: #303133;
+.questions-list {
+    .question-card {
+        margin-bottom: 15px;
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            .question-number {
+                font-weight: 600;
+                color: #303133;
+            }
+
+            .header-controls {
+                display: flex;
+                gap: 15px;
+                align-items: center;
+            }
+        }
+
+        .question-content {
+            .content-text {
+                margin-bottom: 15px;
+                line-height: 1.8;
+            }
+
+            .options-list {
+                margin-bottom: 15px;
+
+                ul {
+                    margin: 10px 0 0 20px;
+                    padding: 0;
+
+                    li {
+                        margin: 5px 0;
+                        line-height: 1.6;
+                    }
+                }
+            }
+
+            .answer-analysis {
+                padding: 15px;
+                background-color: #f5f7fa;
+                border-radius: 4px;
+
+                div {
+                    margin: 5px 0;
+                    line-height: 1.6;
+                }
+            }
+
+            .tags-list {
+                margin-top: 10px;
+                padding: 10px;
+                background-color: #ecf5ff;
+                border-radius: 4px;
+            }
+        }
+
+        .edit-mode {
+            .option-edit {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 10px;
+
+                .el-input {
+                    flex: 1;
+                }
+            }
+        }
+    }
 }
 
-.preview-table {
-    margin-top: 10px;
-}
-
-.result-panel {
+.toolbar {
     display: flex;
+    justify-content: space-between;
     align-items: center;
+    padding: 15px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.pagination {
+    display: flex;
     justify-content: center;
+    margin-top: 20px;
 }
 
 .step-actions {
     display: flex;
     justify-content: center;
     gap: 15px;
-    padding: 20px 0;
+    margin-top: 30px;
+    padding-top: 20px;
     border-top: 1px solid #ebeef5;
 }
 
-/* 树节点样式 */
+.result-summary {
+    p {
+        font-size: 16px;
+        color: #606266;
+        margin-bottom: 20px;
+    }
+}
+
+.result-details {
+    margin-top: 20px;
+}
+
 .custom-tree-node {
-    flex: 1;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding-right: 4px;
-    font-size: 14px;
-}
+    width: 100%;
 
-.node-label-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+    .node-label-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
 
-.node-text {
-    font-weight: 500;
-}
+        .folder-icon,
+        .leaf-icon {
+            color: #909399;
+        }
 
-.folder-icon {
-    color: #e6a23c;
-    font-size: 14px;
-}
-
-.leaf-icon {
-    color: #909399;
-    font-size: 13px;
+        .node-text {
+            flex: 1;
+        }
+    }
 }
 </style>

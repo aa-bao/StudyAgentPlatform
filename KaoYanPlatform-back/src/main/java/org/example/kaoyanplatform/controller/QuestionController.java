@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,6 +56,9 @@ public class QuestionController {
 
     @Autowired
     private PdfExportService pdfExportService;
+
+    @Autowired
+    private MarkdownParseService markdownParseService;
 
     // 1. 按知识点获取题目（递归下级）
     @GetMapping("/list-by-knowledge-point")
@@ -324,7 +328,179 @@ public class QuestionController {
         }
     }
 
-    // 13. 导出题目为PDF
+    // 13. 压缩包批量导入题目（Zip包含MD和图片）
+    @PostMapping("/import/zip")
+    @Operation(summary = "压缩包批量导入题目", description = "接收包含 .md 和 images/ 的 Zip 包，自动解析并导入")
+    public Result importQuestionsFromZip(
+            @RequestParam("zipFile") MultipartFile zipFile,
+            @RequestParam("bookId") Integer bookId,
+            @RequestParam("subjectIds") String subjectIds,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "checkDuplicate", defaultValue = "true") Boolean checkDuplicate) {
+
+        if (zipFile.isEmpty()) {
+            return Result.error("压缩包文件不能为空");
+        }
+
+        if (bookId == null) {
+            return Result.error("习题册ID不能为空");
+        }
+
+        if (subjectIds == null || subjectIds.trim().isEmpty()) {
+            return Result.error("科目ID不能为空");
+        }
+
+        try {
+            // 验证书本和科目是否存在
+            if (bookService.getById(bookId) == null) {
+                return Result.error("习题册不存在");
+            }
+
+            List<Integer> subjectIdList = Arrays.stream(subjectIds.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::parseInt)
+                    .collect(Collectors.toList());
+
+            for (Integer sid : subjectIdList) {
+                if (subjectService.getById(sid) == null) {
+                    return Result.error("科目ID: " + sid + " 不存在");
+                }
+            }
+
+            // 1. 解压Zip到临时目录
+            File tempDir = markdownParseService.unzipToTempDir(zipFile);
+
+            // 2. 查找MD文件
+            File mdFile = findMarkdownFile(tempDir);
+            if (mdFile == null) {
+                // 清理临时目录
+                deleteDirectory(tempDir);
+                return Result.error("未找到Markdown文件，请确保压缩包中包含 .md 文件");
+            }
+
+            // 3. 查找images目录
+            File imageDir = new File(tempDir, "images");
+            if (!imageDir.exists()) {
+                imageDir = tempDir; // 如果没有images目录，使用根目录
+            }
+
+            // 4. 解析Markdown
+            QuestionImportDTO importDTO = markdownParseService.parseMarkdownToQuestions(
+                    mdFile, imageDir, bookId, subjectIdList, source);
+
+            // 5. 批量导入（含去重检查）
+            int successCount = 0;
+            int duplicateCount = 0;
+            int failCount = 0;
+            List<String> errorMessages = new ArrayList<>();
+
+            for (QuestionImportDTO.QuestionImportItem item : importDTO.getQuestions()) {
+                try {
+                    // 去重检查
+                    if (checkDuplicate && questionService.isQuestionExist(item.getContent())) {
+                        duplicateCount++;
+                        continue;
+                    }
+
+                    // 构造 QuestionDTO
+                    QuestionDTO questionDTO = new QuestionDTO();
+                    questionDTO.setType(item.getType());
+                    questionDTO.setContent(item.getContent());
+                    questionDTO.setOptions(item.getOptions());
+                    questionDTO.setAnswer(item.getAnswer());
+                    questionDTO.setAnalysis(item.getAnalysis());
+                    questionDTO.setTags(item.getTags());
+                    questionDTO.setSource(item.getSource());
+                    questionDTO.setBookIds(Collections.singletonList(bookId));
+                    questionDTO.setSubjectIds(subjectIdList);
+
+                    // 保存题目
+                    boolean success = questionService.saveQuestionWithRelations(questionDTO);
+                    if (success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errorMessages.add("题目保存失败");
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    errorMessages.add("题目导入失败: " + e.getMessage());
+                }
+            }
+
+            // 6. 清理临时目录
+            deleteDirectory(tempDir);
+
+            String resultMessage = String.format(
+                    "导入完成！成功: %d, 跳过重复: %d, 失败: %d",
+                    successCount, duplicateCount, failCount);
+
+            if (!errorMessages.isEmpty()) {
+                resultMessage += "\n错误信息:\n" + String.join("\n",
+                        errorMessages.subList(0, Math.min(5, errorMessages.size())));
+                if (errorMessages.size() > 5) {
+                    resultMessage += "\n...还有 " + (errorMessages.size() - 5) + " 条错误";
+                }
+            }
+
+            return Result.success(resultMessage);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 在目录中查找Markdown文件
+     */
+    private File findMarkdownFile(File directory) {
+        if (directory == null || !directory.exists()) {
+            return null;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        for (File file : files) {
+            if (file.isFile() && file.getName().toLowerCase().endsWith(".md")) {
+                return file;
+            }
+            if (file.isDirectory()) {
+                File found = findMarkdownFile(file);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 递归删除目录
+     */
+    private void deleteDirectory(File directory) {
+        if (directory == null || !directory.exists()) {
+            return;
+        }
+
+        if (directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteDirectory(file);
+                }
+            }
+        }
+
+        directory.delete();
+    }
+
+    // 14. 导出题目为PDF
     @PostMapping("/export/pdf")
     @Operation(summary = "导出题目为PDF", description = "根据条件导出题目为PDF文件")
     public Result exportToPDF(@RequestBody QuestionExportDTO exportDTO) {
