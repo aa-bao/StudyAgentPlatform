@@ -5,9 +5,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * 题目导入请求DTO
+ * 题目导入请求DTO（重构版：支持新的 contentJson 格式）
  * 用于接收JSON批量导入的请求数据
  */
 @Data
@@ -34,7 +35,7 @@ public class QuestionImportDTO {
     private List<QuestionImportItem> questions;
 
     /**
-     * 单个题目导入项
+     * 单个题目导入项（重构版：支持新的选项格式）
      */
     @Data
     @NoArgsConstructor
@@ -49,8 +50,17 @@ public class QuestionImportDTO {
         /** 题干内容 */
         private String content;
 
-        /** 选项数组 */
-        private List<String> options;
+        /**
+         * 选项数组（支持两种格式）
+         * 格式1（旧格式，兼容）: ["选项1", "选项2", "选项3", "选项4"]
+         * 格式2（新格式，推荐）: [
+         *   {"label": "A", "text": "选项1"},
+         *   {"label": "B", "text": "选项2"},
+         *   {"label": "C", "text": "选项3"},
+         *   {"label": "D", "text": "选项4"}
+         * ]
+         */
+        private Object options;
 
         /** 正确答案 */
         private String answer;
@@ -63,5 +73,8 @@ public class QuestionImportDTO {
 
         /** 题目来源（可选） */
         private String source;
+
+        /** 难度（可选） */
+        private Integer difficulty;
     }
 }

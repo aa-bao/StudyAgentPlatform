@@ -258,8 +258,8 @@ def extract_pdf_with_mineru(
 
 if __name__ == "__main__":
     # 配置
-    PDF_PATH = "./PDFData/2014年计算机统考真题及解析.pdf"
-    OUTPUT_DIR = "./output_mineru"
+    PDF_PATH = "PDFdata/2014年计算机统考真题及解析.pdf"
+    OUTPUT_DIR = "output_mineru"
 
     # 设置模型源
     os.environ["MINERU_MODEL_SOURCE"] = "local"  # 本地模型

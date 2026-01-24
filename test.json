@@ -1,0 +1,67 @@
+{
+  "subjectIds": [1],
+  "bookId": null,
+  "newBookName": "高等数学测试题集",
+  "checkDuplicate": true,
+  "questions": [
+    {
+      "type": 1,
+      "content": "设函数 $f(x) = x^3 - 3x + 1$，求 $f'(x)$",
+      "options": [
+        {"label": "A", "text": "$$3x^2-3$$"},
+        {"label": "B", "text": "$$3x^2+3$$"},
+        {"label": "C", "text": "$$x^2-3$$"},
+        {"label": "D", "text": "$$x^2+3$$"}
+      ],
+      "answer": "A",
+      "analysis": "根据求导法则，$f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h} = 3x^2-3$",
+      "tags": ["导数", "基础题"],
+      "source": "高等数学习题集",
+      "difficulty": 3
+    },
+    {
+      "type": 2,
+      "content": "下列哪些函数在区间 $(0, +\\infty)$ 上单调递增？",
+      "options": [
+        {"label": "A", "text": "$$f(x) = x^2$$"},
+        {"label": "B", "text": "$$f(x) = e^x$$"},
+        {"label": "C", "text": "$$f(x) = \\ln(x)$$"},
+        {"label": "D", "text": "$$f(x) = \\frac{1}{x}$$"}
+      ],
+      "answer": "ABC",
+      "analysis": "$x^2$在$x>0$时单调递增；$e^x$始终单调递增；$\\ln(x)$在定义域内单调递增；$\\frac{1}{x}$在$x>0$时单调递减",
+      "tags": ["单调性", "多选题"],
+      "difficulty": 4
+    },
+    {
+      "type": 3,
+      "content": "计算定积分：$\\int_0^1 x^2 dx = $ ______",
+      "answer": "$$\\frac{1}{3}$$",
+      "analysis": "根据定积分计算公式：$\\int_0^1 x^2 dx = [\\frac{x^3}{3}]_0^1 = \\frac{1}{3} - 0 = \\frac{1}{3}$",
+      "tags": ["积分", "填空题"],
+      "difficulty": 2
+    },
+    {
+      "type": 4,
+      "content": "请论述函数 $f(x)$ 在点 $x_0$ 处可导的充分必要条件。",
+      "answer": "函数 $f(x)$ 在点 $x_0$ 处可导的充分必要条件是：左导数 $f'_{-}(x_0)$ 和右导数 $f'_{+}(x_0)$ 都存在且相等。",
+      "analysis": "本题考查导数存在的条件。根据导数定义，函数在某点可导要求左右导数都存在且相等。这是判断函数可导性的基本准则。",
+      "tags": ["导数", "简答题", "理论"],
+      "difficulty": 5
+    },
+    {
+      "type": 1,
+      "content": "已知 $\\sin(\\alpha + \\beta) = \\frac{3}{5}$，$\\cos \\alpha = \\frac{4}{5}$，则 $\\sin \\beta = $",
+      "options": [
+        {"label": "A", "text": "$$\\frac{1}{5}$$"},
+        {"label": "B", "text": "$$\\frac{2}{5}$$"},
+        {"label": "C", "text": "$$\\frac{3}{5}$$"},
+        {"label": "D", "text": "$$\\frac{4}{5}$$"}
+      ],
+      "answer": "A",
+      "analysis": "利用三角恒等式：$\\sin(\\alpha + \\beta) = \\sin\\alpha\\cos\\beta + \\cos\\alpha\\sin\\beta$\n由 $\\cos\\alpha = \\frac{4}{5}$ 得 $\\sin\\alpha = \\frac{3}{5}$（假设 $\\alpha$ 为锐角）\n代入计算可得 $\\sin\\beta = \\frac{1}{5}$",
+      "tags": ["三角函数", "计算题"],
+      "difficulty": 4
+    }
+  ]
+}

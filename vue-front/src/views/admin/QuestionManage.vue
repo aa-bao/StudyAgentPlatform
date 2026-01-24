@@ -189,7 +189,7 @@
                             <el-upload ref="uploadRef" action="#" :auto-upload="false" :show-file-list="false"
                                 :on-change="handleAiRecognize" accept="image/*" class="ai-uploader">
                                 <el-button type="primary" size="small" :loading="recognizing" plain icon="Picture">
-                                    AI 图片转文字
+                                    GLM AI 识别
                                 </el-button>
                             </el-upload>
                         </div>
@@ -219,13 +219,13 @@
                         </div>
                         <div class="options-grid">
                             <div v-for="(opt, index) in form.options" :key="index" class="option-row">
-                                <div class="option-label">{{ String.fromCharCode(65 + index) }}</div>
+                                <div class="option-label">{{ opt.label }}</div>
 
                                 <div class="option-edit-main">
-                                    <el-input v-model="form.options[index]" placeholder="输入该选项内容..." type="textarea"
+                                    <el-input v-model="form.options[index].text" placeholder="输入该选项内容..." type="textarea"
                                         :autosize="{ minRows: 1, maxRows: 3 }" class="option-input" />
                                     <div class="option-preview"
-                                        v-html="renderLatex(form.options[index]) || '<span class=\'placeholder\'>公式预览...</span>'">
+                                        v-html="renderLatex(form.options[index].text) || '<span class=\'placeholder\'>公式预览...</span>'">
                                     </div>
                                 </div>
                             </div>
@@ -304,10 +304,17 @@
                 </el-descriptions-item>
                 <el-descriptions-item v-if="viewQuestion.options && viewQuestion.options.length" label="选项">
                     <div v-for="(opt, index) in viewQuestion.options" :key="index">
-                        {{ String.fromCharCode(65 + index) }}. <span v-html="renderLatex(opt)"></span>
+                        <template v-if="typeof opt === 'string'">
+                            {{ String.fromCharCode(65 + index) }}. <span v-html="renderLatex(opt)"></span>
+                        </template>
+                        <template v-else>
+                            {{ opt.label }}. <span v-html="renderLatex(opt.text)"></span>
+                        </template>
                     </div>
                 </el-descriptions-item>
-                <el-descriptions-item label="正确答案">{{ viewQuestion.answer }}</el-descriptions-item>
+                <el-descriptions-item label="正确答案">
+                    <span v-html="renderLatex(viewQuestion.answer)"></span>
+                </el-descriptions-item>
                 <el-descriptions-item label="解析">
                     <div v-html="renderLatex(viewQuestion.analysis || '暂无解析')"></div>
                 </el-descriptions-item>
@@ -370,7 +377,12 @@ const form = ref({
     bookIds: [],
     type: 1,
     content: '',
-    options: ['', '', '', ''],
+    options: [
+        { label: 'A', text: '' },
+        { label: 'B', text: '' },
+        { label: 'C', text: '' },
+        { label: 'D', text: '' }
+    ],
     answer: '',
     analysis: '',
     difficulty: 3,
@@ -576,7 +588,12 @@ const resetForm = () => {
         bookIds: [],
         type: 1,
         content: '',
-        options: ['', '', '', ''],
+        options: [
+            { label: 'A', text: '' },
+            { label: 'B', text: '' },
+            { label: 'C', text: '' },
+            { label: 'D', text: '' }
+        ],
         answer: '',
         analysis: '',
         difficulty: 3,
@@ -594,13 +611,36 @@ const handleAdd = () => {
 // 编辑
 const handleEdit = (row) => {
     console.log('编辑题目:', row)
+
+    // 处理选项格式：兼容旧格式（字符串数组）和新格式（对象数组）
+    let processedOptions = [
+        { label: 'A', text: '' },
+        { label: 'B', text: '' },
+        { label: 'C', text: '' },
+        { label: 'D', text: '' }
+    ]
+
+    if (Array.isArray(row.options)) {
+        if (row.options.length > 0 && typeof row.options[0] === 'string') {
+            // 旧格式：["选项1", "选项2", ...]
+            const labels = ['A', 'B', 'C', 'D', 'E', 'F']
+            processedOptions = row.options.map((opt, i) => ({
+                label: labels[i] || String.fromCharCode(65 + i),
+                text: opt
+            }))
+        } else if (row.options.length > 0 && typeof row.options[0] === 'object') {
+            // 新格式：[{label: "A", text: "选项1"}, ...]
+            processedOptions = [...row.options]
+        }
+    }
+
     form.value = {
         id: row.id,
         subjectIds: Array.isArray(row.subjectIds) ? [...row.subjectIds] : (row.subjectId ? [row.subjectId] : []),
         bookIds: Array.isArray(row.bookIds) ? [...row.bookIds] : (row.bookId ? [row.bookId] : []),
         type: row.type,
         content: row.content || '',
-        options: Array.isArray(row.options) ? [...row.options] : ['', '', '', ''],
+        options: processedOptions,
         answer: row.answer || '',
         analysis: row.analysis || '',
         difficulty: row.difficulty || 3,
@@ -818,10 +858,12 @@ const handleAiRecognize = async (file) => {
                 form.value.content = dto.content
             }
             if (Array.isArray(dto.options) && dto.options.length >= 4) {
-                // 去除选项中的 ABCD 前缀，避免重复
-                form.value.options = dto.options.slice(0, 4).map(opt => {
-                    // 匹配 "A. "、"A)"、"A："、"A " 等格式并去除
-                    return opt.replace(/^[A-Z][\.\) ：:]\s*/, '').replace(/^[A-Z]\s+/, '')
+                // 转换为新的对象格式
+                const labels = ['A', 'B', 'C', 'D']
+                form.value.options = dto.options.slice(0, 4).map((opt, i) => {
+                    // 去除选项中的 ABCD 前缀，避免重复
+                    const text = opt.replace(/^[A-Z][\.\) ：:]\s*/, '').replace(/^[A-Z]\s+/, '')
+                    return { label: labels[i], text }
                 })
             }
             if (dto.answer) {
@@ -834,11 +876,11 @@ const handleAiRecognize = async (file) => {
 
             form.value.type = 1
 
-            ElMessage.success('识别成功！请检查填充的题目内容和选项是否有误。')
+            ElMessage.success('GLM AI 识别成功！请检查填充的题目内容和选项是否有误。')
         }
     } catch (e) {
         console.error('识别失败:', e)
-        ElMessage.error('AI 识别服务暂时不可用: ' + (e.message || '未知错误'))
+        ElMessage.error('GLM AI 识别服务暂时不可用: ' + (e.message || '未知错误'))
     } finally {
         setTimeout(() => {
             recognizing.value = false

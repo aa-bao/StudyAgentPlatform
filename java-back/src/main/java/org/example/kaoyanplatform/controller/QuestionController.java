@@ -23,11 +23,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "题目管理", description = "题目增删改查接口")
 @RestController
@@ -60,6 +58,9 @@ public class QuestionController {
 
     @Autowired
     private MapPaperQuestionService mapPaperQuestionService;
+
+    @Autowired
+    private GLMService glmService;
 
     // 1. 按知识点获取题目（递归下级）
     @GetMapping("/list-by-knowledge-point")
@@ -261,7 +262,6 @@ public class QuestionController {
             if (bookId == null && importDTO.getNewBookName() != null && !importDTO.getNewBookName().trim().isEmpty()) {
                 Book newBook = new Book();
                 newBook.setName(importDTO.getNewBookName().trim());
-//                newBook.setType(importDTO.getNewBookType() != null ? importDTO.getNewBookType() : 1);
                 newBook.setDescription("通过JSON导入自动创建");
                 bookService.save(newBook);
                 bookId = newBook.getId();
@@ -296,7 +296,31 @@ public class QuestionController {
                     QuestionDTO questionDTO = new QuestionDTO();
                     questionDTO.setType(item.getType());
                     questionDTO.setContent(item.getContent());
-                    questionDTO.setOptions(item.getOptions());
+
+                    // 处理选项：支持旧格式（字符串数组）和新格式（对象数组）
+                    if (item.getOptions() != null) {
+                        // 如果传入的是字符串数组，转换为对象数组格式
+                        if (item.getOptions() instanceof List) {
+                            List<?> optionsList = (List<?>) item.getOptions();
+                            if (!optionsList.isEmpty() && optionsList.get(0) instanceof String) {
+                                // 旧格式：["选项1", "选项2", "选项3", "选项4"]
+                                // 转换为新格式：[{"label": "A", "text": "选项1"}, ...]
+                                List<Map<String, String>> formattedOptions = new ArrayList<>();
+                                String[] labels = {"A", "B", "C", "D", "E", "F"};
+                                for (int i = 0; i < optionsList.size() && i < labels.length; i++) {
+                                    Map<String, String> option = new java.util.HashMap<>();
+                                    option.put("label", labels[i]);
+                                    option.put("text", (String) optionsList.get(i));
+                                    formattedOptions.add(option);
+                                }
+                                questionDTO.setOptions(formattedOptions);
+                            } else if (optionsList.get(0) instanceof Map) {
+                                // 新格式：已经是对象数组，直接使用
+                                questionDTO.setOptions((List<Map<String, String>>) (List<?>) optionsList);
+                            }
+                        }
+                    }
+
                     questionDTO.setAnswer(item.getAnswer());
                     questionDTO.setAnalysis(item.getAnalysis());
                     questionDTO.setTags(item.getTags());
@@ -440,6 +464,20 @@ public class QuestionController {
         }
 
         return questions;
+    }
+
+    // 13. AI 图片识别题目
+    @PostMapping("/recognize")
+    @Operation(summary = "AI图片识别题目", description = "使用智谱GLM-4.6V-Flash API识别图片中的题目内容")
+    public Result recognizeQuestion(@RequestParam("file") MultipartFile file) {
+        try {
+            QuestionDTO questionDTO = glmService.recognizeQuestionFromImage(file);
+            return Result.success(questionDTO);
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        } catch (RuntimeException e) {
+            return Result.error("AI识别失败: " + e.getMessage());
+        }
     }
 
 }

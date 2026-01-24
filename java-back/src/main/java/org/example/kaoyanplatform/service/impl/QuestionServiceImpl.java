@@ -27,7 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 题目Service实现类
+ * 题目Service实现类（重构版：支持 content_json 结构）
  * 使用映射表（map_question_subject、map_question_book）管理题目与科目、书本的关系
  */
 @Service
@@ -76,8 +76,16 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     public boolean saveQuestionWithRelations(QuestionDTO questionDTO) {
         // 1. 保存题目基本信息
         Question question = new Question();
-        BeanUtils.copyProperties(questionDTO, question);
+
+        // 复制基本字段
+        question.setId(questionDTO.getId());
+        question.setType(questionDTO.getType());
+        question.setDifficulty(questionDTO.getDifficulty());
         question.setCreateTime(LocalDateTime.now());
+
+        // 合并 contentJson（兼容字段优先，然后是 contentJson 本身）
+        question.setContentJson(questionDTO.getMergedContentJson());
+
         boolean saved = save(question);
 
         if (!saved) {
@@ -118,7 +126,15 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
         // 1. 更新题目基本信息
         Question question = new Question();
-        BeanUtils.copyProperties(questionDTO, question);
+
+        // 复制基本字段
+        question.setId(questionDTO.getId());
+        question.setType(questionDTO.getType());
+        question.setDifficulty(questionDTO.getDifficulty());
+
+        // 合并 contentJson（兼容字段优先，然后是 contentJson 本身）
+        question.setContentJson(questionDTO.getMergedContentJson());
+
         boolean updated = updateById(question);
 
         if (!updated) {
@@ -204,7 +220,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                 List<Integer> sIds = mapQuestionSubjectService.getSubjectIdsByQuestionId(q.getId());
                 if (sIds != null && !sIds.isEmpty()) {
                     q.setSubjectIds(sIds);
-                    
+
                     List<String> subjectNames = new ArrayList<>();
                     for (Integer sId : sIds) {
                         Subject subject = subjectService.getById(sId);
@@ -222,7 +238,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                 List<Integer> bIds = mapQuestionBookService.getBookIdsByQuestionId(q.getId());
                 if (bIds != null && !bIds.isEmpty()) {
                     q.setBookIds(bIds);
-                    
+
                     List<String> bookNames = new ArrayList<>();
                     for (Integer bId : bIds) {
                         Book book = bookService.getById(bId);
@@ -245,12 +261,24 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         if (content == null || content.trim().isEmpty()) {
             return false;
         }
-        
-        QueryWrapper<Question> wrapper = new QueryWrapper<>();
-        wrapper.eq("content", content);
-        wrapper.last("LIMIT 1");
 
-        return count(wrapper) > 0;
+        // 由于 content 现在存储在 JSON 字段中，我们需要先查询所有题目然后在内存中比较
+        // 或者使用原生 SQL 的 JSON_EXTRACT 函数（更高效）
+        // 这里使用内存比较的方式（简单但性能稍差）
+        List<Question> allQuestions = list();
+
+        for (Question q : allQuestions) {
+            String qContent = q.getContent();
+            if (qContent != null && qContent.equals(content)) {
+                return true;
+            }
+        }
+
+        return false;
+
+        // TODO: 如果数据量大，建议改用原生 SQL 查询:
+        // SELECT COUNT(*) > 0 FROM tb_question
+        // WHERE JSON_EXTRACT(content_json, '$.content') = #{content}
     }
 
     @Override
@@ -268,10 +296,28 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                 ? normalizedContent.substring(0, 50)
                 : normalizedContent;
 
-        QueryWrapper<Question> wrapper = new QueryWrapper<>();
-        wrapper.like("content", keyword);
-        wrapper.last("LIMIT 10");
+        // 由于 content 现在存储在 JSON 字段中，我们需要先查询所有题目然后在内存中比较
+        List<Question> allQuestions = list();
+        List<Question> similarQuestions = new ArrayList<>();
 
-        return list(wrapper);
+        for (Question q : allQuestions) {
+            String qContent = q.getContent();
+            if (qContent != null) {
+                String normalizedQContent = qContent.replaceAll("\\s+", "").trim();
+                if (normalizedQContent.contains(keyword) || keyword.contains(normalizedQContent.substring(0, Math.min(50, normalizedQContent.length())))) {
+                    similarQuestions.add(q);
+                    if (similarQuestions.size() >= 10) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return similarQuestions;
+
+        // TODO: 如果数据量大，建议改用原生 SQL 查询:
+        // SELECT * FROM tb_question
+        // WHERE JSON_EXTRACT(content_json, '$.content') LIKE CONCAT('%', #{keyword}, '%')
+        // LIMIT 10
     }
 }

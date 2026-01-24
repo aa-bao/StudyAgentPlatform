@@ -168,7 +168,7 @@
                                 <div class="question-detail">
                                     <div class="detail-row">
                                         <span class="detail-label">题干：</span>
-                                        <span class="detail-content">{{ question.content || '(无)' }}</span>
+                                        <span class="detail-content" v-html="renderLatex(question.content || '(无)')"></span>
                                     </div>
 
                                     <div v-if="question.options && question.options.length > 0" class="detail-row">
@@ -178,21 +178,20 @@
                                                 v-for="(option, optIdx) in question.options"
                                                 :key="optIdx"
                                                 class="option-item"
-                                                :data-index="String.fromCharCode(65 + optIdx)"
+                                                v-html="formatOption(option, optIdx)"
                                             >
-                                                {{ option }}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div class="detail-row">
                                         <span class="detail-label">答案：</span>
-                                        <span class="detail-content answer">{{ question.answer || '(未填写)' }}</span>
+                                        <span class="detail-content answer" v-html="renderLatex(question.answer || '(未填写)')"></span>
                                     </div>
 
                                     <div v-if="question.analysis" class="detail-row">
                                         <span class="detail-label">解析：</span>
-                                        <span class="detail-content analysis">{{ question.analysis }}</span>
+                                        <span class="detail-content analysis" v-html="renderLatex(question.analysis)"></span>
                                     </div>
 
                                     <div v-if="question.tags && question.tags.length > 0" class="detail-row tags-row">
@@ -283,6 +282,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getAllBooks, getSubjectTree, importQuestions } from '@/api/questionImportExport'
+import katex from 'katex'
 
 // 数据
 const importing = ref(false)
@@ -511,6 +511,74 @@ const toggleExpandAll = () => {
     }
 }
 
+// 渲染 LaTeX 公式
+const renderLatex = (text) => {
+    if (!text) return ''
+
+    // 匹配 $$...$$ (块级公式)
+    const blockRegex = /\$\$([^$]+)\$\$/g
+    // 匹配 $...$ (行内公式)
+    const inlineRegex = /\$([^$]+)\$/g
+
+    let result = text
+
+    // 替换所有 LaTeX 公式
+    const replacements = []
+
+    // 先收集所有块级公式
+    result = result.replace(blockRegex, (_, tex) => {
+        const placeholder = `___LATEX_BLOCK_${replacements.length}___`
+        replacements.push({
+            type: 'block',
+            tex: tex
+        })
+        return placeholder
+    })
+
+    // 再收集所有行内公式
+    result = result.replace(inlineRegex, (_, tex) => {
+        const placeholder = `___LATEX_INLINE_${replacements.length}___`
+        replacements.push({
+            type: 'inline',
+            tex: tex
+        })
+        return placeholder
+    })
+
+    // 替换占位符为实际的 KaTeX HTML
+    replacements.forEach((item, idx) => {
+        const placeholder = item.type === 'block' ? `___LATEX_BLOCK_${idx}___` : `___LATEX_INLINE_${idx}___`
+        try {
+            // 确保在渲染前，先将 \\ 替换成 \，防止 KaTeX 错误解析转义字符
+            const unescapedTex = item.tex.replace(/\\\\/g, '\\')
+            const html = katex.renderToString(unescapedTex, {
+                throwOnError: false,
+                displayMode: item.type === 'block'
+            })
+            result = result.replace(placeholder, html)
+        } catch (e) {
+            console.error('KaTeX render error:', e)
+            result = result.replace(placeholder, item.tex)
+        }
+    })
+
+    return result
+}
+
+// 格式化选项显示
+const formatOption = (option, index) => {
+    if (typeof option === 'string') {
+        const label = String.fromCharCode(65 + index)
+        const text = renderLatex(option)
+        return `${label}. ${text}`
+    } else if (typeof option === 'object' && option !== null) {
+        const label = option.label || String.fromCharCode(65 + index)
+        const text = renderLatex(option.text || '')
+        return `${label}. ${text}`
+    }
+    return ''
+}
+
 // 下载模板
 const downloadTemplate = () => {
     const template = {
@@ -518,11 +586,14 @@ const downloadTemplate = () => {
             {
                 "type": 1,
                 "content": "设函数 f(x) = x³ - 3x + 1，求 f'(x)",
+                // 选项格式1（旧格式，兼容）：字符串数组
+                // "options": ["3x² - 3", "3x² + 3", "x² - 3", "x² + 3"],
+                // 选项格式2（新格式，推荐）：对象数组
                 "options": [
-                    "A. 3x² - 3",
-                    "B. 3x² + 3",
-                    "C. x² - 3",
-                    "D. x² + 3"
+                    {"label": "A", "text": "3x² - 3"},
+                    {"label": "B", "text": "3x² + 3"},
+                    {"label": "C", "text": "x² - 3"},
+                    {"label": "D", "text": "x² + 3"}
                 ],
                 "answer": "A",
                 "analysis": "根据求导法则，f'(x) = 3x² - 3",
@@ -533,14 +604,21 @@ const downloadTemplate = () => {
                 "type": 2,
                 "content": "下列哪些函数在区间 (0, +∞) 上单调递增？",
                 "options": [
-                    "A. f(x) = x²",
-                    "B. f(x) = eˣ",
-                    "C. f(x) = ln(x)",
-                    "D. f(x) = 1/x"
+                    {"label": "A", "text": "f(x) = x²"},
+                    {"label": "B", "text": "f(x) = eˣ"},
+                    {"label": "C", "text": "f(x) = ln(x)"},
+                    {"label": "D", "text": "f(x) = 1/x"}
                 ],
                 "answer": "ABC",
                 "analysis": "x²在x>0时单调递增；eˣ始终单调递增；ln(x)在定义域内单调递增；1/x在x>0时单调递减",
                 "tags": ["单调性", "多选题"]
+            },
+            {
+                "type": 4,
+                "content": "请论述马克思主义哲学中的质变与量变关系。",
+                "answer": "量变是质变的必要准备，质变是量变的必然结果",
+                "analysis": "本题考查唯物辩证法核心原理...",
+                "tags": ["马克思主义哲学", "简答题"]
             }
         ]
     }

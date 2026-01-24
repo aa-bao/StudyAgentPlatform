@@ -162,8 +162,8 @@ def extract_pdf_cli(pdf_path: str, output_dir: str = "./output") -> bool:
 
 if __name__ == "__main__":
     # 配置
-    PDF_PATH = "./PDFData/2010年计算机统考真题及解析.pdf"
-    OUTPUT_DIR = "./output_mineru"
+    PDF_PATH = "PDFdata/2010年计算机统考真题及解析.pdf"
+    OUTPUT_DIR = "output_mineru"
 
     print("=" * 60)
     print("PDF 提取工具 (MinerU)")

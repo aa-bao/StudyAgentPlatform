@@ -17,10 +17,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -129,8 +126,14 @@ public class PdfExportServiceImpl implements PdfExportService {
                 question.setAnalysis(convertLatexToHtml(question.getAnalysis()));
             }
             if (question.getOptions() != null) {
-                List<String> processedOptions = question.getOptions().stream()
-                    .map(this::convertLatexToHtml)
+                // 处理新的选项格式：List<Map<String, String>>
+                List<Map<String, String>> processedOptions = question.getOptions().stream()
+                    .map(opt -> {
+                        Map<String, String> newOpt = new java.util.HashMap<>();
+                        newOpt.put("label", opt.get("label"));
+                        newOpt.put("text", convertLatexToHtml(opt.get("text")));
+                        return newOpt;
+                    })
                     .collect(Collectors.toList());
                 question.setOptions(processedOptions);
             }
