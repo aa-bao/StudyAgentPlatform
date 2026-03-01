@@ -61,6 +61,9 @@
                     <el-table-column label="习题册信息" min-width="250">
                         <template #default="scope">
                             <div class="book-info-cell">
+                                <div v-if="scope.row.image" class="book-image">
+                                    <el-image :src="scope.row.image" :preview-src-list="[scope.row.image]" style="width: 60px; height: 80px; object-fit: cover; border-radius: 4px" fit="cover" />
+                                </div>
                                 <div class="nickname">
                                     <el-icon class="book-icon">
                                         <Notebook />
@@ -124,6 +127,21 @@
                     <el-input v-model="form.description" type="textarea" :rows="3" placeholder="习题册的版本或核心介绍" />
                 </el-form-item>
 
+                <el-form-item label="习题册图片" prop="image">
+                    <el-upload
+                        class="avatar-uploader"
+                        action="#"
+                        :show-file-list="false"
+                        :http-request="handleImageUpload"
+                        :before-upload="beforeImageUpload"
+                        accept="image/*"
+                    >
+                        <img v-if="form.image" :src="form.image" class="avatar" />
+                        <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+                    </el-upload>
+                    <div class="upload-tip">支持 JPG、PNG、GIF 格式，文件大小不超过 2MB</div>
+                </el-form-item>
+
                 <el-form-item label="关联科目" prop="subjectIds">
                     <el-tree-select v-model="form.subjectIds" :data="subjectTreeForDialog"
                     :props="{ label: 'name', value: 'id', children: 'children' }"
@@ -169,6 +187,7 @@
 import { ref, onMounted } from 'vue'
 import request from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { uploadAvatarApi } from '@/api/user'
 
 // 数据定义
 const loading = ref(false)
@@ -190,7 +209,8 @@ const form = ref({
     id: null,
     subjectIds: [],
     name: '',
-    description: ''
+    description: '',
+    image: ''
 })
 
 const rules = {
@@ -394,7 +414,8 @@ const resetForm = () => {
         id: null,
         name: '',
         description: '',
-        subjectIds: []
+        subjectIds: [],
+        image: ''
     }
     formRef.value?.clearValidate()
 }
@@ -403,6 +424,47 @@ const resetForm = () => {
 const handleAdd = () => {
     resetForm()
     dialogVisible.value = true
+}
+
+// 图片上传前校验
+const beforeImageUpload = (rawFile) => {
+    const isImage = rawFile.type.startsWith('image/')
+    if (!isImage) {
+        ElMessage.error('请上传图片文件')
+        return false
+    }
+
+    const isLt2M = rawFile.size / 1024 / 1024 < 2
+    if (!isLt2M) {
+        ElMessage.error('图片大小不能超过 2MB')
+        return false
+    }
+
+    return true
+}
+
+// 处理图片上传
+const handleImageUpload = async (options) => {
+    const file = options.file
+    const isValid = beforeImageUpload(file)
+    if (!isValid) {
+        return
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+        const response = await uploadAvatarApi(formData)
+        if (response.code === 200) {
+            const imageUrl = response.data
+            form.value.image = imageUrl
+            ElMessage.success('图片上传成功')
+        }
+    } catch (error) {
+        console.error('上传图片失败:', error)
+        ElMessage.error('上传图片失败')
+    }
 }
 
 // 编辑
@@ -416,7 +478,8 @@ const handleEdit = async (row) => {
             id: book.id,
             name: book.name || '',
             description: book.description || '',
-            subjectIds: book.subjectIds || []
+            subjectIds: book.subjectIds || [],
+            image: book.image || ''
         }
         dialogVisible.value = true
         console.log('编辑表单数据:', form.value)
@@ -586,6 +649,61 @@ onMounted(() => {
 
 .all-text {
     font-weight: 500;
+}
+
+/* 图片上传样式 */
+.avatar-uploader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.avatar-uploader :deep(.el-upload) {
+    width: 120px;
+    height: 120px;
+}
+
+.avatar-uploader .el-upload {
+    width: 120px;
+    height: 120px;
+}
+
+.avatar-uploader .el-upload-dragger {
+    width: 120px;
+    height: 120px;
+}
+
+.avatar {
+    width: 120px;
+    height: 120px;
+    display: block;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.avatar-uploader-icon {
+    width: 120px;
+    height: 120px;
+    background-color: #f5f7fa;
+    border: 1px dashed #c0c4cc;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    color: #8c939d;
+    cursor: pointer;
+}
+
+.upload-tip {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 8px;
+    text-align: center;
+}
+
+.book-image {
+    margin-bottom: 8px;
 }
 
 /* 表格内部样式 */

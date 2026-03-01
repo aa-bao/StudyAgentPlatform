@@ -12,7 +12,7 @@
                     <div class="logo-icon-box">
                         <span class="logo-letter">Y</span>
                     </div>
-                    <span class="logo-text">YanGoGo</span>
+                    <span class="logo-text">YanGUO</span>
                 </div>
             </div>
 

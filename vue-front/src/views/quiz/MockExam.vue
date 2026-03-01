@@ -21,7 +21,7 @@
       <nav class="system-nav">
         <div class="nav-left">
           <div class="logo-group">
-            <span class="logo-group-eng">KaoYan Platform</span>
+            <span class="logo-group-eng">YanGUO Platform</span>
             <span class="logo-group-ch">考研真题模考系统</span>
           </div>
           <span class="ai-tag">AI ENHANCED</span>

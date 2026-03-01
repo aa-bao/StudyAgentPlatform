@@ -13,6 +13,7 @@ public class BookDTO {
     private Integer id;
     private String name;
     private String description;
+    private String image; // 习题册图片URL
 
     // ✅ 支持多对多关联
     private List<Integer> subjectIds;   // 关联的科目ID列表

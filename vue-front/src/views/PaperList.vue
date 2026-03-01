@@ -201,7 +201,8 @@ onMounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+  /* background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%); */
+  background: transparent;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 

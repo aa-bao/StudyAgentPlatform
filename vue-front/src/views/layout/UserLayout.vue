@@ -983,7 +983,8 @@ onMounted(() => {
 
 /* 内容区 */
 .content-main {
-    background: transparent;
+    /* background: transparent; */
+    background: linear-gradient(135deg, #cfecff 0%, #00aeff 100%);
     padding: 0;
     overflow-y: auto;
     overflow-x: hidden;

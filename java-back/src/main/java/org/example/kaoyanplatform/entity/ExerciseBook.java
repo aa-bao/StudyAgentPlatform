@@ -16,10 +16,11 @@ public class ExerciseBook {
     private Integer id;
     private String name;
     private String description;
+    private String image; // 习题册图片URL
     private LocalDateTime createTime;
 
     @TableField(exist = false)
-    private Integer subjectId; // 所属科目ID（通过map_subject_book查询，已废弃，请使用subjectIds）
+    private Integer subjectId; // 所属科目ID
 
     @TableField(exist = false)
     private String subjectName; // 科目名称（关联查询时使用）

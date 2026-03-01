@@ -208,10 +208,9 @@ public class ExamSessionServiceImpl extends ServiceImpl<ExamSessionMapper, ExamS
         session.setStatus(1);
         session.setSubmitTime(LocalDateTime.now());
         session.setTotalScore(objectiveScore);
-        session.setAiSummary("客观题已批改完成。\n\n客观题得分：" + objectiveScore + " 分\n客观题总分：" + objectiveTotalScore + " 分\n主观题总分：" + subjectiveTotalScore + " 分（需自行批改）");
+        session.setAiSummary("客观题已批改完成。\n\n客观题得分：" + objectiveScore + " 分\n客观题总分：" + objectiveTotalScore + " 分\n主观题总分：" + subjectiveTotalScore + " 分");
         updateById(session);
 
-        // 不再触发异步批改主观题
     }
 
     @Override
