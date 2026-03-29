@@ -110,4 +110,6 @@ vue-front/temp/
 
 uml/
 
+.worktrees/
+
 *.md
